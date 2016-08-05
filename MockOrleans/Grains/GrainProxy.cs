@@ -37,7 +37,7 @@ namespace MockOrleans.Grains
                 var arg = args[i];
 
                 if(arg is Grain) { //proxify before passing to grain method
-                    var argKey = ((Grain)arg).GetConcreteGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
+                    var argKey = ((IGrain)arg).GetConcreteGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
 
                     var param = method.GetParameters()[i];
 

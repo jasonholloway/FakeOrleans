@@ -49,7 +49,7 @@
   <ItemGroup>
     <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
     <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
-    <Compile Include="Bits\Extensions\GrainExtensions.cs" />
+    <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />
     <Compile Include="Bits\Extensions\StringExtensions.cs" />
     <Compile Include="Bits\Extensions\TypeExtensions.cs" />
