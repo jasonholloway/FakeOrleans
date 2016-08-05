@@ -21,7 +21,7 @@ namespace MockOrleans
         public StreamRegistry Streams { get; private set; }
 
 
-        public MockSilo Silo { get; private set; } //should be collection...
+        public MockSilo Silo { get; private set; } //should be GrainRegistry...
 
 
         public MockFixture(IServiceProvider services) 
@@ -38,10 +38,6 @@ namespace MockOrleans
 
 
 
-
-        public void ClearReminders() {
-            Reminders.ClearAll();
-        }
 
 
 

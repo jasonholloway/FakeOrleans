@@ -16,66 +16,70 @@ namespace MockOrleans
 
     public class MockTimerRegistry : ITimerRegistry, IDisposable
     {
-        TaskScheduler _scheduler;
         GrainHarness _harness;
+        List<Timer> _timers = new List<Timer>();
 
-        object _sync = new object();
-        ConcurrentBag<Task> _timers = new ConcurrentBag<Task>();
-        
 
-        public MockTimerRegistry(GrainHarness harness) 
-        {
+        public MockTimerRegistry(GrainHarness harness) {
             _harness = harness;
-            _scheduler = harness.Scheduler;
         }
-        
 
 
-        class DisposableLink : IDisposable
+
+
+
+        class Timer : IDisposable
         {
-            public readonly IDisposable This;
-            public IDisposable Next = null;
+            Func<Task> _fn;
+            GrainHarness _harness;
+            CancellationTokenSource _cancelSource;
+            CancellationToken _cancelToken;
 
-            public DisposableLink(IDisposable thisDisp) {
-                This = thisDisp;
+            public Timer(GrainHarness harness, Func<Task> fn) {
+                _harness = harness;
+                _fn = fn;
+                _cancelSource = new CancellationTokenSource();
+                _cancelToken = _cancelSource.Token;
+            }
+
+            public void Run(TimeSpan delay, TimeSpan period) {
+                if(_cancelToken.IsCancellationRequested) return;
+
+                var task = Task.Delay(delay, _cancelToken)
+                                .ContinueWith(_ => _fn(), _cancelToken, TaskContinuationOptions.None, _harness.Scheduler)
+                                .Unwrap();
+
+                if(period > TimeSpan.Zero) {
+                    task = task.ContinueWith(
+                                    _ => Run(period, period),
+                                    _cancelToken,
+                                    TaskContinuationOptions.None,
+                                    TaskScheduler.Default);
+                }
+
+                _harness.Fixture.RegisterTask(task);
             }
 
             public void Dispose() {
-                This.Dispose();
-                Next?.Dispose();
+                _cancelSource.Cancel();
             }
         }
 
 
-        public IDisposable RegisterTimer(Grain grain, Func<object, Task> fn, object state, TimeSpan dueTime, TimeSpan period) 
-        {
-            var task = new Task<Task>(fn, state);
-            
-            Task.Delay(dueTime)
-                .ContinueWith(_ => {
-                    task.Start(_scheduler);
-                }, TaskScheduler.Default);
+        public IDisposable RegisterTimer(Grain grain, Func<object, Task> fn, object state, TimeSpan dueTime, TimeSpan period) {
+            var timer = new Timer(_harness, () => fn(state));
+            lock(_timers) _timers.Add(timer);
 
-            var fullTask = task.Unwrap(); //and exception handler???
-            var dispLink = new DisposableLink(fullTask);
+            timer.Run(dueTime, period);
 
-            if(period > TimeSpan.Zero) {
-                fullTask.ContinueWith(_ => {
-                    dispLink.Next = RegisterTimer(grain, fn, state, period, period);
-                }, TaskScheduler.Default);
-            }
-
-            _timers.Add(fullTask);
-            _harness.Fixture.RegisterTask(fullTask); //but won't all this be registered through scheduler? eventually, yes...
-
-            return dispLink;            
+            return timer;
         }
 
 
         public void Clear() {
-            lock(_sync) {
-                _timers.ForEach(t => t.Dispose()); //bit abrupt and nasty - timers should self-dispose given deactivation
-                _timers = new ConcurrentBag<Task>();
+            lock(_timers) {
+                _timers.ForEach(t => t.Dispose());
+                _timers.Clear();
             }
         }
 
@@ -87,13 +91,13 @@ namespace MockOrleans
         protected virtual void Dispose(bool disposing) {
             if(!disposedValue) {
                 if(disposing) {
-                    _timers.ForEach(t => t.Dispose());                    
+                    _timers.ForEach(t => t.Dispose());
                 }
-                
+
                 disposedValue = true;
             }
         }
-        
+
         public void Dispose() {
             Dispose(true);
         }

@@ -61,6 +61,7 @@
     <Compile Include="Components\StreamRegistry.cs" />
     <Compile Include="Components\StateStore.cs" />
     <Compile Include="Bits\DynaType.cs" />
+    <Compile Include="FixtureExtensions.cs" />
     <Compile Include="Grains\GrainKey.cs" />
     <Compile Include="Grains\GrainActivator.cs" />
     <Compile Include="Grains\GrainHarness.cs" />
