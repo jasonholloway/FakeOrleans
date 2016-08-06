@@ -30,8 +30,8 @@ namespace MockOrleans.Grains
             get { return Key; }
         }
 
-
-        protected async Task<TResult> Dispatch<TResult>(MethodInfo method, object[] args) 
+        
+        protected Task<TResult> Dispatch<TResult>(MethodInfo method, object[] args) 
         {
             for(int i = 0; i< args.Length; i++) {
                 var arg = args[i];
@@ -53,7 +53,7 @@ namespace MockOrleans.Grains
 
             var endpoint = Fixture.Silo.GetGrainEndpoint(Key);
 
-            return await endpoint.Invoke<TResult>(method, args);
+            return endpoint.Invoke<TResult>(method, args);
         }
 
         public override string ToString() => $"Proxy:{Key}";

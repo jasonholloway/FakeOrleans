@@ -39,6 +39,8 @@ namespace MockOrleans
 
     public class MockFixture
     {
+        public readonly FixtureScheduler Scheduler;
+        
         public readonly IServiceProvider Services;
         public readonly IGrainFactory GrainFactory;
 
@@ -49,13 +51,13 @@ namespace MockOrleans
         public readonly StreamRegistry Streams;
 
         public readonly ITaskRegistry Tasks;
-        
-
         public MockSilo Silo { get; private set; } //should be GrainRegistry...
+
 
 
         public MockFixture(IServiceProvider services) 
         {
+            Scheduler = new FixtureScheduler();
             Services = services;          
             Types = new MockTypeMap();
             GrainFactory = new MockGrainFactory(this);

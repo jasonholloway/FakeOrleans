@@ -29,7 +29,7 @@ namespace MockOrleans.Grains
         {
             Fixture = fx;
             Key = key;
-            Scheduler = new GrainTaskScheduler(fx.Tasks);
+            Scheduler = new GrainTaskScheduler(fx.Scheduler);
             Timers = new MockTimerRegistry(this);
         }
 

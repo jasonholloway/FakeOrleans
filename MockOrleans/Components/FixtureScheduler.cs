@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace MockOrleans
-{
+{    
+
     public class FixtureScheduler : TaskScheduler
     {
         volatile bool _closed = false;
@@ -29,14 +31,18 @@ namespace MockOrleans
                 if(_closed) throw new ObjectDisposedException(nameof(FixtureScheduler));
                 _taskCount++;
             }
-
+            
             try {
                 ThreadPool.QueueUserWorkItem(_ => {
-                                if(_closed) return; //tasks not cancelled, just ignored...
+                    if(_closed) { return; } //this shouldn't happen...
 
-                                TryExecuteTask(task); //exceptions packed into task
-                                DecrementTaskCount();
-                            });
+                    try {
+                        TryExecuteTask(task);
+                    }
+                    finally {
+                        DecrementTaskCount();
+                    }
+                });
             }
             catch(NotSupportedException) {
                 DecrementTaskCount();
@@ -54,8 +60,8 @@ namespace MockOrleans
                     _closed = true;
                 }
             }
-
-            if(_closed) _tsOnClose.TrySetResult(true);
+            
+            if(_closed) _tsOnClose.SetResult(true); //queues continuation on originating scheduler
         }
 
 

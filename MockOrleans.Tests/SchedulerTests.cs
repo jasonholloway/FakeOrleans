@@ -16,8 +16,8 @@ namespace MockOrleans.Tests
         [Test]
         public void DisposeCancelsQueuedTasks() 
         {
-            var reg = new TaskRegistry();            
-            var scheduler = new GrainTaskScheduler(reg);
+            var fxScheduler = new FixtureScheduler();            
+            var scheduler = new GrainTaskScheduler(fxScheduler);
 
             var taskSource = new TaskCompletionSource<bool>();
             var tasks = new List<Task>();
