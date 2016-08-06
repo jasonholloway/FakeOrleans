@@ -46,13 +46,13 @@ namespace MockOrleans
 
     public class GrainReminderRegistry : IReminderRegistry
     {
-        MockFixture _runtime;
+        MockFixture _fx;
         GrainKey _grainKey;
         ConcurrentDictionary<string, Reminder> _reminders = new ConcurrentDictionary<string, Reminder>();
 
 
-        public GrainReminderRegistry(MockFixture runtime, GrainKey grainKey) {
-            _runtime = runtime;
+        public GrainReminderRegistry(MockFixture fx, GrainKey grainKey) {
+            _fx = fx;
             _grainKey = grainKey;
         }
 
@@ -79,11 +79,11 @@ namespace MockOrleans
 
             await UnregisterReminder(reminderName);
             
-            var reminder = new Reminder(_runtime, _grainKey, reminderName);
+            var reminder = new Reminder(_fx, _grainKey, reminderName);
 
             _reminders[reminderName] = reminder;
 
-            _runtime.RegisterTask(reminder.Schedule(dueTime, period));
+            _fx.Tasks.Register(reminder.Schedule(dueTime, period));
 
             return reminder;
         }

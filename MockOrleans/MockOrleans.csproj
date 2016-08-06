@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
     <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
+    <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />
     <Compile Include="Bits\Extensions\StringExtensions.cs" />

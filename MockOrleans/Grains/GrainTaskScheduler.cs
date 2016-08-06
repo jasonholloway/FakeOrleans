@@ -8,17 +8,24 @@ using System.Threading.Tasks;
 namespace MockOrleans.Grains
 {
     
+    public interface ITaskRegistry
+    {
+        IEnumerable<Task> All { get; }
+        void Register(Task task);
+    }
+
+
     public class GrainTaskScheduler : TaskScheduler, IDisposable
     {
-        GrainHarness _harness;
+        ITaskRegistry _tasks;
 
         object _sync = new object();
         Task _last = Task.FromResult(true);
         CancellationTokenSource _cancelSource;
         CancellationToken _cancelToken;
 
-        public GrainTaskScheduler(GrainHarness harness) {
-            _harness = harness;
+        public GrainTaskScheduler(ITaskRegistry tasks) {
+            _tasks = tasks;
             _cancelSource = new CancellationTokenSource();
             _cancelToken = _cancelSource.Token;
         }
@@ -36,9 +43,9 @@ namespace MockOrleans.Grains
             if(_disposed) throw new ObjectDisposedException(nameof(GrainTaskScheduler));
 
             lock(_sync) {
-                _last = _last.ContinueWith(_ => TryExecuteTask(task), _cancelToken, TaskContinuationOptions.RunContinuationsAsynchronously, TaskScheduler.Default); //catch exceptions also?
+                _last = _last.ContinueWith(_ => TryExecuteTask(task), _cancelToken, TaskContinuationOptions.None, TaskScheduler.Default); //catch exceptions also?
 
-                _harness.Fixture.RegisterTask(_last);
+                _tasks.Register(_last);
             }
         }
 

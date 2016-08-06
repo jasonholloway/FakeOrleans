@@ -10,8 +10,20 @@ namespace MockOrleans
 
     public interface ITypeMap
     {
+        void Map(Type abstractType, Type concreteType);
         Type GetConcreteType(Type abstractType);
     }
+
+
+
+    public static class TypeMapExtensions
+    {
+        public static void Map<TInterface, TImplementation>(this ITypeMap typeMap)
+            where TImplementation : class, TInterface
+            => typeMap.Map(typeof(TInterface), typeof(TImplementation));
+    }
+
+
 
 
 
@@ -23,7 +35,7 @@ namespace MockOrleans
             return _dMap.GetOrAdd(abstractType, t => Resolve(t));
         }
 
-        public void AddConcreteType(Type abstractType, Type concreteType) 
+        public void Map(Type abstractType, Type concreteType) 
         {            
             Require.That(abstractType.IsGenericTypeDefinition 
                                 || abstractType.IsAssignableFrom(concreteType));
@@ -31,7 +43,7 @@ namespace MockOrleans
             _dMap.AddOrUpdate(abstractType, concreteType, (_, __) => concreteType);
         }
         
-        public Type Resolve(Type abstractType) 
+        Type Resolve(Type abstractType) 
         {
             Require.That(!abstractType.IsGenericTypeDefinition);
             

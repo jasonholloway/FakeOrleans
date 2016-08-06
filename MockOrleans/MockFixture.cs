@@ -9,17 +9,47 @@ using System.Threading.Tasks;
 
 namespace MockOrleans
 {
-    public class MockFixture
+
+    public class TaskRegistry : ITaskRegistry
     {        
-        public IServiceProvider Services { get; private set; }
-        public IGrainFactory GrainFactory { get; private set; }
+        ConcurrentQueue<Task> _tasks = new ConcurrentQueue<Task>();
 
-        public ReminderRegistry Reminders { get; private set; }
-        public ProviderRegistry Providers { get; private set; }
-        public ITypeMap Types { get; private set; }
-        public IStateStore Store { get; private set; } //should be a registry - implicitly filled
-        public StreamRegistry Streams { get; private set; }
+        public IEnumerable<Task> All {
+            get { return _tasks.ToArray(); }
+        }
+       
 
+        //every time a task is added, we try and remove as many as we can
+        //ensure as much churn of queue as possible
+
+        public void Register(Task task) {
+            Task dequeued = null;
+
+            while(_tasks.TryDequeue(out dequeued) && dequeued.Status == TaskStatus.RanToCompletion) ;
+
+            _tasks.Enqueue(task);
+
+            if(dequeued != null) {
+                _tasks.Enqueue(dequeued);
+            }
+        }
+                
+    }
+
+
+    public class MockFixture
+    {
+        public readonly IServiceProvider Services;
+        public readonly IGrainFactory GrainFactory;
+
+        public readonly ReminderRegistry Reminders;
+        public readonly ProviderRegistry Providers;
+        public readonly ITypeMap Types;
+        public readonly IStateStore Store;
+        public readonly StreamRegistry Streams;
+
+        public readonly ITaskRegistry Tasks;
+        
 
         public MockSilo Silo { get; private set; } //should be GrainRegistry...
 
@@ -34,6 +64,7 @@ namespace MockOrleans
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
             Silo = new MockSilo(this);
+            Tasks = new TaskRegistry();
         }
 
 
@@ -61,35 +92,7 @@ namespace MockOrleans
         public GrainProxy GetGrainProxy(ResolvedGrainKey key) {
             return GrainProxy.Proxify(this, key);
         }
-
-
-
-
-
-
-        ConcurrentQueue<Task> _allTasks = new ConcurrentQueue<Task>();
-
-        public IEnumerable<Task> AllTasks {
-            get { return _allTasks.ToArray(); }
-        }
-
-
-        //every time a task is added, we try and remove as many as we can
-        //ensure as much churn of queue as possible
-
-        public void RegisterTask(Task task) {
-            Task dequeued = null;
-
-            while(_allTasks.TryDequeue(out dequeued) && dequeued.Status == TaskStatus.RanToCompletion) ;
-
-            _allTasks.Enqueue(task);
-
-            if(dequeued != null) {
-                _allTasks.Enqueue(dequeued);
-            }
-        }
-        
-
+               
 
     }
 }
