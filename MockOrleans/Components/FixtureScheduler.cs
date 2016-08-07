@@ -19,6 +19,11 @@ namespace MockOrleans
         TaskCompletionSource<bool> _tsOnClose = new TaskCompletionSource<bool>();
 
         
+        public bool IsOpen {
+            get { return !_closed; }
+        }
+
+
         protected override IEnumerable<Task> GetScheduledTasks() {
             return Enumerable.Empty<Task>();
         }
@@ -61,7 +66,7 @@ namespace MockOrleans
                 }
             }
             
-            if(_closed) _tsOnClose.SetResult(true); //queues continuation on originating scheduler
+            if(_closed) _tsOnClose.TrySetResult(true); //queues continuation on originating scheduler
         }
 
 
@@ -70,11 +75,20 @@ namespace MockOrleans
         }
         
 
-        public Task CloseWhenQuiet() {
+        public Task CloseWhenIdle() {
             _closeRequested = true;
+
+            lock(_sync) {
+                if(_taskCount == 0) {
+                    _closed = true;
+                }
+            }
+
+            if(_closed) _tsOnClose.TrySetResult(true);
+            
             return _tsOnClose.Task;
         }
-
+                        
 
     }
 }

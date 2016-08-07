@@ -12,12 +12,10 @@ using System.Threading.Tasks;
 namespace MockOrleans.Tests
 {
 
-
     [TestFixture]
     public class CompletionTests
     {
-
-
+        
         [Test]
         public async Task CompletionSucceedsWhenAllTasksRunViaFixtureScheduler() 
         {
@@ -28,7 +26,7 @@ namespace MockOrleans.Tests
             
             var task = grain.Execute(3, 8);                                          
             
-            await fx.Scheduler.CloseWhenQuiet();
+            await fx.Scheduler.CloseWhenIdle();
             
             Assert.That(task.IsCompleted, Is.True);
         }
@@ -44,6 +42,18 @@ namespace MockOrleans.Tests
 
 
 
+        [Test]
+        public async Task SchedulerClosesImmediatelyIfEmpty() 
+        {
+            var scheduler = new FixtureScheduler();
+            
+            await scheduler.CloseWhenIdle();
+
+            Assert.That(scheduler.IsOpen, Is.False);
+        }
+
+
+
 
 
         [Test]
@@ -54,9 +64,10 @@ namespace MockOrleans.Tests
 
             var grain = fx.GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
 
-            var t = grain.ExecuteViaDelay(2, 4, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quiten, before real completion
-
-            await fx.Scheduler.CloseWhenQuiet();
+            var t = grain.Execute(2, 8, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quiten, before real completion
+            
+            await fx.Requests.WhenIdle();   //this should be packaged into complete funciton surely
+            await fx.Scheduler.CloseWhenIdle();
 
             Assert.That(t.IsCompleted, Is.True);
         }
@@ -68,28 +79,25 @@ namespace MockOrleans.Tests
         //simulates a tree of async calls
         public interface IBranchingExecutor : IGrainWithGuidKey 
         {
-            Task Execute(int branching, int depth);
-            Task ExecuteViaDelay(int branching, int depth, int delay);
+            Task Execute(int branching, int depth, int delay = 0);
         }
 
 
         public class BranchingExecutor : Grain, IBranchingExecutor
         {
-            public async Task Execute(int branching, int depth) 
+            public async Task Execute(int branching, int depth, int delay) 
             {
+                if(delay > 0) await Task.Delay(delay);
+                
                 if(depth > 0) {
                     await Task.WhenAll(Enumerable.Range(0, branching)
                                                 .Select(async _ => {
                                                     var next = GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
-                                                    await next.Execute(branching, depth - 1);
+                                                    await next.Execute(branching, depth - 1, delay);
                                                 }));
                 }
             }
-
-            public async Task ExecuteViaDelay(int branching, int depth, int delay) {
-                await Task.Delay(delay);
-                await Execute(branching, depth);
-            }
+            
         }
 
         

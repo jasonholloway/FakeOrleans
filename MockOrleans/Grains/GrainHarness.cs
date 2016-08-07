@@ -13,45 +13,7 @@ using System.Collections.Concurrent;
 
 namespace MockOrleans.Grains
 {
-
-    public class RequestRegistry
-    {
-        RequestRegistry _inner;
-        int _count;
-        List<TaskCompletionSource<bool>> _taskSources = new List<TaskCompletionSource<bool>>();
-
-
-        public RequestRegistry(RequestRegistry inner = null) {
-            _inner = inner;
-        }
-
-        public void Increment() {
-            Interlocked.Increment(ref _count);
-            _inner?.Increment();
-        }
-
-        public void Decrement() {
-            int c = Interlocked.Decrement(ref _count);
-                                                        
-            lock(_taskSources) {
-                if(c == 0) {
-                    _taskSources.ForEach(ts => ts.SetResult(true));
-                    _taskSources.Clear();
-                }
-            }
-
-            _inner?.Decrement();
-        }
-
-        public Task WhenIdle() {
-            var source = new TaskCompletionSource<bool>();
-            lock(_taskSources) _taskSources.Add(source);
-            return source.Task;
-        }
-
-    }
-
-    
+        
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
         public readonly MockFixture Fixture;
@@ -63,8 +25,6 @@ namespace MockOrleans.Grains
         IGrain Grain { get; set; } = null;
 
         
-
-
         public GrainHarness(MockFixture fx, GrainKey key) 
         {
             Fixture = fx;
@@ -86,7 +46,7 @@ namespace MockOrleans.Grains
                 
         public async Task Deactivate() 
         {
-            await _smActive.WaitAsync();
+            await _smActive.WaitAsync();  //uncomfortable with semaphores being used here... for public use should have deactivateonidle only - which we already have below...
 
             try {
                 Timers.Clear();
@@ -213,7 +173,7 @@ namespace MockOrleans.Grains
             get { return Fixture.Services; }
         }
         
-        void IGrainRuntime.DeactivateOnIdle(Grain grain) {
+        void IGrainRuntime.DeactivateOnIdle(Grain grain) { //this reveals grainruntime to be a general service
             Requests.WhenIdle().ContinueWith(_ => Deactivate(), Scheduler);
         }
 
