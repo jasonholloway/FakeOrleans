@@ -10,25 +10,28 @@ using Orleans.Timers;
 using System.Reflection;
 using System.Threading;
 using System.Collections.Concurrent;
+using Orleans.Concurrency;
 
 namespace MockOrleans.Grains
-{
-        
+{        
+
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
         public readonly MockFixture Fixture;
+        public readonly GrainKey Key;
+        public readonly GrainSpec Spec;
         public readonly TaskScheduler Scheduler;
         public readonly RequestRegistry Requests;
         public readonly MockTimerRegistry Timers;
-        public readonly GrainKey Key;
-       
+        
         IGrain Grain { get; set; } = null;
-
+        
         
         public GrainHarness(MockFixture fx, GrainKey key) 
         {
             Fixture = fx;
             Key = key;
+            Spec = GrainSpec.GetFor(key.ConcreteType);
             Scheduler = new GrainTaskScheduler(fx.Scheduler);
             Requests = new RequestRegistry(fx.Requests);
             Timers = new MockTimerRegistry(this);
@@ -72,9 +75,8 @@ namespace MockOrleans.Grains
         public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn, bool activate = true) 
         {
             var t = new Task<Task<TResult>>(async () => {
-
-                Requests.Increment();
-                await _smActive.WaitAsync();
+                Requests.Increment();       //PROBLEM NOW OF ENSURING ONLY ONE ACTIVATION IS EMBARKED UPON...
+                if(Spec.SerializesRequests) await _smActive.WaitAsync();
 
                 try {
                     if(activate || Grain != null) {
@@ -89,7 +91,7 @@ namespace MockOrleans.Grains
                 }
                 finally {
                     Requests.Decrement();
-                    _smActive.Release();
+                    if(Spec.SerializesRequests) _smActive.Release();
                 }
             });
             

@@ -30,17 +30,7 @@ namespace MockOrleans.Tests
             
             Assert.That(task.IsCompleted, Is.True);
         }
-
-        
-        //respecting requests - there needs to be a fixture-wide tracking of requests then
-        //when they're quiet, no more should be forthcoming, unless timers and reminders etc are working,
-        //which they shouldn't be, under normal circumstances.
-
-        //and this works with reentrancy too - there should be a request registry that keeps a count
-        //but such a count also determines grain idleness...
-
-
-
+                
 
         [Test]
         public async Task SchedulerClosesImmediatelyIfEmpty() 
@@ -51,10 +41,7 @@ namespace MockOrleans.Tests
 
             Assert.That(scheduler.IsOpen, Is.False);
         }
-
-
-
-
+        
 
         [Test]
         public async Task CompletionRespectsRequestsWhenSomeTasksRunElsewhere() 
@@ -64,9 +51,9 @@ namespace MockOrleans.Tests
 
             var grain = fx.GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
 
-            var t = grain.Execute(2, 8, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quiten, before real completion
+            var t = grain.Execute(2, 8, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quieten, before real completion
             
-            await fx.Requests.WhenIdle();   //this should be packaged into complete funciton surely
+            await fx.Requests.WhenIdle();   //to be packaged into complete function
             await fx.Scheduler.CloseWhenIdle();
 
             Assert.That(t.IsCompleted, Is.True);
@@ -76,7 +63,7 @@ namespace MockOrleans.Tests
 
 
 
-        //simulates a tree of async calls
+        //executes a tree of async calls
         public interface IBranchingExecutor : IGrainWithGuidKey 
         {
             Task Execute(int branching, int depth, int delay = 0);
