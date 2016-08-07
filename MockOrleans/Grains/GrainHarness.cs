@@ -9,20 +9,60 @@ using Orleans.Streams;
 using Orleans.Timers;
 using System.Reflection;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace MockOrleans.Grains
 {
+
+    public class RequestRegistry
+    {
+        RequestRegistry _inner;
+        int _count;
+        List<TaskCompletionSource<bool>> _taskSources = new List<TaskCompletionSource<bool>>();
+
+
+        public RequestRegistry(RequestRegistry inner = null) {
+            _inner = inner;
+        }
+
+        public void Increment() {
+            Interlocked.Increment(ref _count);
+            _inner?.Increment();
+        }
+
+        public void Decrement() {
+            int c = Interlocked.Decrement(ref _count);
+                                                        
+            lock(_taskSources) {
+                if(c == 0) {
+                    _taskSources.ForEach(ts => ts.SetResult(true));
+                    _taskSources.Clear();
+                }
+            }
+
+            _inner?.Decrement();
+        }
+
+        public Task WhenIdle() {
+            var source = new TaskCompletionSource<bool>();
+            lock(_taskSources) _taskSources.Add(source);
+            return source.Task;
+        }
+
+    }
+
     
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
-        public MockFixture Fixture { get; private set; }
-        public GrainKey Key { get; private set; }
+        public readonly MockFixture Fixture;
+        public readonly TaskScheduler Scheduler;
+        public readonly RequestRegistry Requests;
+        public readonly MockTimerRegistry Timers;
+        public readonly GrainKey Key;
        
         IGrain Grain { get; set; } = null;
 
-        MockTimerRegistry Timers { get; set; }
-
-        public TaskScheduler Scheduler { get; private set; }
+        
 
 
         public GrainHarness(MockFixture fx, GrainKey key) 
@@ -30,6 +70,7 @@ namespace MockOrleans.Grains
             Fixture = fx;
             Key = key;
             Scheduler = new GrainTaskScheduler(fx.Scheduler);
+            Requests = new RequestRegistry(fx.Requests);
             Timers = new MockTimerRegistry(this);
         }
 
@@ -66,12 +107,13 @@ namespace MockOrleans.Grains
         #region IGrainEndpoint
         
         SemaphoreSlim _smActive = new SemaphoreSlim(1);
-
+        
 
         public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn, bool activate = true) 
         {
             var t = new Task<Task<TResult>>(async () => {
 
+                Requests.Increment();
                 await _smActive.WaitAsync();
 
                 try {
@@ -86,6 +128,7 @@ namespace MockOrleans.Grains
                     throw ex;
                 }
                 finally {
+                    Requests.Decrement();
                     _smActive.Release();
                 }
             });
@@ -142,8 +185,7 @@ namespace MockOrleans.Grains
         }
         
         #endregion
-               
-        
+                       
 
         #region IGrainRuntime
 
@@ -172,7 +214,7 @@ namespace MockOrleans.Grains
         }
         
         void IGrainRuntime.DeactivateOnIdle(Grain grain) {
-            throw new NotImplementedException();
+            Requests.WhenIdle().ContinueWith(_ => Deactivate(), Scheduler);
         }
 
         void IGrainRuntime.DelayDeactivation(Grain grain, TimeSpan timeSpan) {
@@ -208,7 +250,6 @@ namespace MockOrleans.Grains
 
         #endregion
         
-
     }
 
 

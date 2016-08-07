@@ -9,37 +9,11 @@ using System.Threading.Tasks;
 
 namespace MockOrleans
 {
-
-    public class TaskRegistry : ITaskRegistry
-    {        
-        ConcurrentQueue<Task> _tasks = new ConcurrentQueue<Task>();
-
-        public IEnumerable<Task> All {
-            get { return _tasks.ToArray(); }
-        }
-       
-
-        //every time a task is added, we try and remove as many as we can
-        //ensure as much churn of queue as possible
-
-        public void Register(Task task) {
-            Task dequeued = null;
-
-            while(_tasks.TryDequeue(out dequeued) && dequeued.Status == TaskStatus.RanToCompletion) ;
-
-            _tasks.Enqueue(task);
-
-            if(dequeued != null) {
-                _tasks.Enqueue(dequeued);
-            }
-        }
-                
-    }
-
-
+    
     public class MockFixture
     {
         public readonly FixtureScheduler Scheduler;
+        public readonly RequestRegistry Requests;
         
         public readonly IServiceProvider Services;
         public readonly IGrainFactory GrainFactory;
@@ -49,8 +23,7 @@ namespace MockOrleans
         public readonly ITypeMap Types;
         public readonly IStateStore Store;
         public readonly StreamRegistry Streams;
-
-        public readonly ITaskRegistry Tasks;
+        
         public MockSilo Silo { get; private set; } //should be GrainRegistry...
 
 
@@ -58,6 +31,7 @@ namespace MockOrleans
         public MockFixture(IServiceProvider services) 
         {
             Scheduler = new FixtureScheduler();
+            Requests = new RequestRegistry();
             Services = services;          
             Types = new MockTypeMap();
             GrainFactory = new MockGrainFactory(this);
@@ -66,7 +40,6 @@ namespace MockOrleans
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
             Silo = new MockSilo(this);
-            Tasks = new TaskRegistry();
         }
 
 

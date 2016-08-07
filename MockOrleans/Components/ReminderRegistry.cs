@@ -83,7 +83,7 @@ namespace MockOrleans
 
             _reminders[reminderName] = reminder;
 
-            _fx.Tasks.Register(reminder.Schedule(dueTime, period));
+            //_fx.Tasks.Register(reminder.Schedule(dueTime, period));
 
             return reminder;
         }

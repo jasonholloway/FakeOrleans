@@ -50,10 +50,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GrainTests.cs" />
     <Compile Include="IntegrationTests.cs" />
     <Compile Include="SchedulerTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TaskTests.cs" />
+    <Compile Include="CompletionTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MockOrleans\MockOrleans.csproj">

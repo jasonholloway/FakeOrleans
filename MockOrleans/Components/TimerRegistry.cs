@@ -57,7 +57,7 @@ namespace MockOrleans
                                     TaskScheduler.Default);
                 }
 
-                _harness.Fixture.Tasks.Register(task);
+                //_harness.Fixture.Tasks.Register(task);
             }
 
             public void Dispose() {

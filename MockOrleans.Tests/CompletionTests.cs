@@ -26,12 +26,22 @@ namespace MockOrleans.Tests
             
             var grain = fx.GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
             
-            var task = grain.Execute(2, 4);                                          
+            var task = grain.Execute(3, 8);                                          
             
             await fx.Scheduler.CloseWhenQuiet();
             
             Assert.That(task.IsCompleted, Is.True);
         }
+
+        
+        //respecting requests - there needs to be a fixture-wide tracking of requests then
+        //when they're quiet, no more should be forthcoming, unless timers and reminders etc are working,
+        //which they shouldn't be, under normal circumstances.
+
+        //and this works with reentrancy too - there should be a request registry that keeps a count
+        //but such a count also determines grain idleness...
+
+
 
 
 
@@ -44,7 +54,7 @@ namespace MockOrleans.Tests
 
             var grain = fx.GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
 
-            var t = grain.ExecuteViaDelay(2, 4); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quiten, before real completion
+            var t = grain.ExecuteViaDelay(2, 4, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quiten, before real completion
 
             await fx.Scheduler.CloseWhenQuiet();
 
@@ -55,11 +65,11 @@ namespace MockOrleans.Tests
 
 
 
-
-        public interface IBranchingExecutor : IGrainWithGuidKey
+        //simulates a tree of async calls
+        public interface IBranchingExecutor : IGrainWithGuidKey 
         {
             Task Execute(int branching, int depth);
-            Task ExecuteViaDelay(int branching, int depth);
+            Task ExecuteViaDelay(int branching, int depth, int delay);
         }
 
 
@@ -67,8 +77,6 @@ namespace MockOrleans.Tests
         {
             public async Task Execute(int branching, int depth) 
             {
-                Interlocked.Increment(ref Blah.Count);
-
                 if(depth > 0) {
                     await Task.WhenAll(Enumerable.Range(0, branching)
                                                 .Select(async _ => {
@@ -78,18 +86,13 @@ namespace MockOrleans.Tests
                 }
             }
 
-            public async Task ExecuteViaDelay(int branching, int depth) {
-                await Task.Delay(50);
+            public async Task ExecuteViaDelay(int branching, int depth, int delay) {
+                await Task.Delay(delay);
                 await Execute(branching, depth);
             }
         }
 
-
-
         
-
-
-
 
     }
 }
