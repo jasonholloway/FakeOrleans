@@ -82,9 +82,9 @@ namespace MockOrleans
             var reminder = new Reminder(_fx, _grainKey, reminderName);
 
             _reminders[reminderName] = reminder;
-
-            //_fx.Tasks.Register(reminder.Schedule(dueTime, period));
-
+            
+            _fx.Requests.Perform(() => reminder.Schedule(dueTime, period)); //but scheduling should be tracked - the first execution, less so...
+            
             return reminder;
         }
                 
@@ -119,6 +119,8 @@ namespace MockOrleans
         string _name;
         GrainKey _key;
         MockFixture _fx;
+
+        Task _task = Task.CompletedTask;
         CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
         CancellationToken _cancelToken; 
 
@@ -134,25 +136,29 @@ namespace MockOrleans
         static MethodInfo _mReceiveRemindable = typeof(IRemindable).GetMethod("ReceiveReminder");
         
 
-        public async Task Schedule(TimeSpan due, TimeSpan period)  //BEWARE! - must be called in default task scheduling context
+        public async Task Schedule(TimeSpan due, TimeSpan period)
         {
             if(_cancelToken.IsCancellationRequested) return;
 
             var adjustedDue = TimeSpan.FromMilliseconds(due.TotalMilliseconds / _fx.Reminders.Speed);
-            
-            try {
-                await Task.Delay(adjustedDue, _cancelTokenSource.Token);
-            }
-            catch(TaskCanceledException) {
-                return;
+
+            if(adjustedDue > TimeSpan.Zero) {
+                try {
+                    await Task.Delay(adjustedDue, _cancelTokenSource.Token);
+                }
+                catch(TaskCanceledException) {
+                    return;
+                }
             }
             
             if(_cancelToken.IsCancellationRequested) return;
 
-            var endpoint = _fx.Silo.GetGrainEndpoint(_key);            
-            await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
-
-            await Schedule(period, period);            
+            _fx.Requests.Perform(async () => {
+                var endpoint = _fx.Silo.GetGrainEndpoint(_key);
+                await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
+            });
+            
+            _fx.Requests.Perform(() => Schedule(period, period));
         }
 
 

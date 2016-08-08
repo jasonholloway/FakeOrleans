@@ -33,7 +33,7 @@ namespace MockOrleans.Grains
             Key = key;
             Spec = GrainSpec.GetFor(key.ConcreteType);
             Scheduler = new GrainTaskScheduler(fx.Scheduler);
-            Requests = new RequestRegistry(fx.Requests);
+            Requests = new RequestRegistry(Scheduler, fx.Requests);
             Timers = new MockTimerRegistry(this);
         }
 

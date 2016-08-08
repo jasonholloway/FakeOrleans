@@ -10,12 +10,14 @@ namespace MockOrleans
 
     public class RequestRegistry
     {
+        TaskScheduler _scheduler;
         RequestRegistry _innerReqs;
         int _count;
         Queue<TaskCompletionSource<bool>> _waitingTaskSources;
         object _sync = new object();
 
-        public RequestRegistry(RequestRegistry innerReqs = null) {
+        public RequestRegistry(TaskScheduler scheduler, RequestRegistry innerReqs = null) {
+            _scheduler = scheduler;
             _innerReqs = innerReqs;
             _waitingTaskSources = new Queue<TaskCompletionSource<bool>>();
         }
@@ -44,6 +46,26 @@ namespace MockOrleans
             _innerReqs?.Decrement();
             capturedTaskSources?.ForEach(ts => ts.SetResult(true));
         }
+
+
+        public void Perform(Func<Task> fn) 
+        {
+            var task = new Task<Task>(fn);
+
+            Increment();
+            task.Start(_scheduler);
+            
+            task.Unwrap().ContinueWith(
+                                t => {
+                                    Decrement();
+
+                                    if(t.IsFaulted) {
+                                        var ex = t.Exception; //this should be marshalled somewhere visible
+                                    }
+                                }, _scheduler);
+        }
+
+
 
         public Task WhenIdle() {
             lock(_sync) {

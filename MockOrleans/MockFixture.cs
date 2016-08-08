@@ -31,7 +31,7 @@ namespace MockOrleans
         public MockFixture(IServiceProvider services = null) 
         {
             Scheduler = new FixtureScheduler();
-            Requests = new RequestRegistry();
+            Requests = new RequestRegistry(Scheduler);
             Services = new ServiceRegistry(services);          
             Types = new MockTypeMap();
             GrainFactory = new MockGrainFactory(this);
