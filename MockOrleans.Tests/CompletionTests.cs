@@ -58,10 +58,7 @@ namespace MockOrleans.Tests
 
             Assert.That(t.IsCompleted, Is.True);
         }
-
-
-
-
+        
 
         //executes a tree of async calls
         public interface IBranchingExecutor : IGrainWithGuidKey 
@@ -88,6 +85,17 @@ namespace MockOrleans.Tests
         }
 
         
+
+
+
+        [Test]
+        public async Task RequestIdlenessImmediateIfNoRequests() 
+        {
+            var fx = new MockFixture();
+            await fx.Requests.WhenIdle();
+        }
+
+
 
     }
 }

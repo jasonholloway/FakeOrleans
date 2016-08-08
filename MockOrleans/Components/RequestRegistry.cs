@@ -12,27 +12,33 @@ namespace MockOrleans
     {
         RequestRegistry _innerReqs;
         int _count;
-        Queue<TaskCompletionSource<bool>> _taskSources;
-
+        Queue<TaskCompletionSource<bool>> _waitingTaskSources;
+        object _sync = new object();
 
         public RequestRegistry(RequestRegistry innerReqs = null) {
             _innerReqs = innerReqs;
-            _taskSources = new Queue<TaskCompletionSource<bool>>();
+            _waitingTaskSources = new Queue<TaskCompletionSource<bool>>();
         }
 
+
         public void Increment() {
-            Interlocked.Increment(ref _count);
+            lock(_sync) {
+                _count++;
+            }
+            
             _innerReqs?.Increment();
         }
 
         //Not convinced by below
         public void Decrement() {
             Queue<TaskCompletionSource<bool>> capturedTaskSources = null;
+            
+            lock(_sync) {
+                _count--;
 
-            int c = Interlocked.Decrement(ref _count);
-
-            if(c == 0) {
-                capturedTaskSources = Interlocked.Exchange(ref _taskSources, new Queue<TaskCompletionSource<bool>>());
+                if(_count == 0) {
+                    capturedTaskSources = Interlocked.Exchange(ref _waitingTaskSources, new Queue<TaskCompletionSource<bool>>());
+                }
             }
 
             _innerReqs?.Decrement();
@@ -40,9 +46,16 @@ namespace MockOrleans
         }
 
         public Task WhenIdle() {
-            var source = new TaskCompletionSource<bool>();
-            _taskSources.Enqueue(source);
-            return source.Task;
+            lock(_sync) {
+                if(_count == 0) {
+                    return Task.CompletedTask;
+                }
+                
+                var source = new TaskCompletionSource<bool>();
+                _waitingTaskSources.Enqueue(source);
+
+                return source.Task;
+            }
         }
 
     }
