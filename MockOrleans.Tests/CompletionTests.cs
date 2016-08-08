@@ -52,8 +52,11 @@ namespace MockOrleans.Tests
             var grain = fx.GrainFactory.GetGrain<IBranchingExecutor>(Guid.NewGuid());
 
             var t = grain.Execute(2, 8, 50); //includes Task.Delay, creating gaps in which fixture scheduler will temporarily quieten, before real completion
-            
-            await fx.Requests.WhenIdle();   //to be packaged into complete function
+
+            await Task.Delay(15); //gives above request chance to start
+            Assert.That(t.IsCompleted, Is.False);
+
+            await fx.Requests.WhenIdle();   //why are no requests registered here? There are some definitely ongoing...
             await fx.Scheduler.CloseWhenIdle();
 
             Assert.That(t.IsCompleted, Is.True);

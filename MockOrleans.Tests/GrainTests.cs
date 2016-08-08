@@ -133,7 +133,9 @@ namespace MockOrleans.Tests
             await deactivatable.SetRecorder(recorder);
 
             await deactivatable.PrecipitateDeactivation();
-            
+
+            await Task.Delay(15);
+
             await fx.Requests.WhenIdle();
             
             //assert is deactivated here
