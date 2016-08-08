@@ -9,7 +9,7 @@ namespace MockOrleans
     public static class FixtureExtensions
     {        
         public static void ClearReminders(this MockFixture fx) {
-            fx.Reminders.ClearAll();
+            fx.Reminders.CancelAll();
         }
 
 

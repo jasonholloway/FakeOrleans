@@ -28,9 +28,12 @@ namespace MockOrleans
             => _dRegistries.GetOrAdd(key, k => new GrainReminderRegistry(_fx, k));
 
 
-        public void ClearAll()
-            => _dRegistries.Values.ToArray().ForEach(r => r.Clear());
-
+        public void CancelAll()
+            => _dRegistries.Values.ToArray().ForEach(r => r.CancelAll());
+        
+        public void FireAndCancelAll()
+            => _dRegistries.Values.ToArray().ForEach(r => r.FireAndCancelAll());
+        
 
         double _speed = 1;
         object _speedSync = new object();
@@ -94,41 +97,62 @@ namespace MockOrleans
             Reminder rem;
 
             if(_reminders.TryRemove(name, out rem)) {
-                rem.Dispose();
+                rem.Clear();
             }
 
-            return Task.FromResult(true);
+            return Task.CompletedTask;
         }
 
 
         public Task UnregisterReminder(IGrainReminder reminder)
             => UnregisterReminder(reminder.ReminderName);
         
+        
+        public void CancelAll() {
+            var reminders = Interlocked.Exchange(ref _reminders, new ConcurrentDictionary<string, Reminder>());
+            reminders.Values.ForEach(r => r.Clear());
+        }
+        
 
-        public void Clear()
-            => _reminders.Values.ToArray().ForEach(r => r.Dispose());
+        public void FireAndCancelAll() 
+        {
+            var reminders = Interlocked.Exchange(ref _reminders, new ConcurrentDictionary<string, Reminder>());
+            reminders.Values.ForEach(r => r.FireAndClear());
+        }
+
 
     }
 
+    
 
 
+    public enum ReminderState
+    {
+        Normal,
+        Cancelled,
+        OneShot
+    }
+    
 
 
-    public class Reminder : IGrainReminder, IDisposable
+    public class Reminder : IGrainReminder
     {
         string _name;
         GrainKey _key;
         MockFixture _fx;
-
-        Task _task = Task.CompletedTask;
+        
         CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
-        CancellationToken _cancelToken; 
+        CancellationToken _cancelToken;
+
+        volatile ReminderState _status;
 
 
         public Reminder(MockFixture fx, GrainKey key, string name) {
             _fx = fx;
             _key = key;
             _name = name;
+
+            _status = ReminderState.Normal;
             _cancelToken = _cancelTokenSource.Token;
         }
 
@@ -138,34 +162,41 @@ namespace MockOrleans
 
         public async Task Schedule(TimeSpan due, TimeSpan period)
         {
-            if(_cancelToken.IsCancellationRequested) return;
-
             var adjustedDue = TimeSpan.FromMilliseconds(due.TotalMilliseconds / _fx.Reminders.Speed);
 
             if(adjustedDue > TimeSpan.Zero) {
                 try {
                     await Task.Delay(adjustedDue, _cancelTokenSource.Token);
                 }
-                catch(TaskCanceledException) {
-                    return;
-                }
+                catch(TaskCanceledException) { }
             }
-            
-            if(_cancelToken.IsCancellationRequested) return;
 
-            _fx.Requests.Perform(async () => {
-                var endpoint = _fx.Silo.GetGrainEndpoint(_key);
-                await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
-            });
-            
-            _fx.Requests.Perform(() => Schedule(period, period));
+            var status = _status;
+
+            if(status == ReminderState.Normal) {
+                _fx.Requests.Perform(() => Schedule(period, period));
+            }
+
+            if(status != ReminderState.Cancelled) {
+                _fx.Requests.Perform(async () => {
+                    var endpoint = _fx.Silo.GetGrainEndpoint(_key);
+                    await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
+                });
+            }
         }
+        
 
-
-        public void Dispose() {
+        public void FireAndClear() {
+            _status = ReminderState.OneShot;
             _cancelTokenSource.Cancel();
         }
+        
 
+        public void Clear() {
+            _status = ReminderState.Cancelled;
+            _cancelTokenSource.Cancel();
+        }
+        
 
         string IGrainReminder.ReminderName {
             get { return _name; }
