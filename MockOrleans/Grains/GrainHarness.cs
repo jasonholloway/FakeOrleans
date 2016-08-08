@@ -86,12 +86,9 @@ namespace MockOrleans.Grains
 
                     return default(TResult);
                 }
-                catch(Exception ex) {
-                    throw ex;
-                }
                 finally {
-                    Requests.Decrement();
                     if(Spec.SerializesRequests) _smActive.Release();
+                    Requests.Decrement();
                 }
             });
             

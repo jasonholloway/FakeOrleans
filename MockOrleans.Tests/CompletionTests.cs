@@ -26,20 +26,18 @@ namespace MockOrleans.Tests
             
             var task = grain.Execute(3, 8);                                          
             
-            await fx.Scheduler.CloseWhenIdle();
+            await fx.Scheduler.WhenIdle();
             
             Assert.That(task.IsCompleted, Is.True);
         }
                 
 
         [Test]
-        public async Task SchedulerClosesImmediatelyIfEmpty() 
+        public async Task SchedulerIsIdleImmediatelyIfEmpty() 
         {
             var scheduler = new FixtureScheduler();
             
-            await scheduler.CloseWhenIdle();
-
-            Assert.That(scheduler.IsOpen, Is.False);
+            await scheduler.WhenIdle();
         }
         
 
@@ -57,7 +55,7 @@ namespace MockOrleans.Tests
             Assert.That(t.IsCompleted, Is.False);
 
             await fx.Requests.WhenIdle();   //why are no requests registered here? There are some definitely ongoing...
-            await fx.Scheduler.CloseWhenIdle();
+            await fx.Scheduler.WhenIdle();
 
             Assert.That(t.IsCompleted, Is.True);
         }

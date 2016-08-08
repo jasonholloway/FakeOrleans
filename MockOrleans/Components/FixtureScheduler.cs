@@ -11,18 +11,10 @@ namespace MockOrleans
 
     public class FixtureScheduler : TaskScheduler
     {
-        volatile bool _closed = false;
-        volatile bool _closeRequested = false;
-        
         object _sync = new object();
         int _taskCount = 0;
-        TaskCompletionSource<bool> _tsOnClose = new TaskCompletionSource<bool>();
-
+        TaskCompletionSource<bool> _tsOnIdle = new TaskCompletionSource<bool>();
         
-        public bool IsOpen {
-            get { return !_closed; }
-        }
-
 
         protected override IEnumerable<Task> GetScheduledTasks() {
             return Enumerable.Empty<Task>();
@@ -33,14 +25,11 @@ namespace MockOrleans
         protected override void QueueTask(Task task) 
         {
             lock(_sync) {
-                if(_closed) throw new ObjectDisposedException(nameof(FixtureScheduler));
                 _taskCount++;
             }
             
             try {
                 ThreadPool.QueueUserWorkItem(_ => {
-                    if(_closed) { return; } //this shouldn't happen...
-
                     try {
                         TryExecuteTask(task);
                     }
@@ -58,15 +47,18 @@ namespace MockOrleans
 
         void DecrementTaskCount() 
         {
+            TaskCompletionSource<bool> ts = null;
+            
             lock(_sync) {
                 _taskCount--;
 
-                if(_closeRequested && _taskCount == 0) {
-                    _closed = true;
+                if(_taskCount == 0) {
+                    ts = _tsOnIdle;
+                    _tsOnIdle = new TaskCompletionSource<bool>();
                 }
             }
-            
-            if(_closed) _tsOnClose.TrySetResult(true); //queues continuation on originating scheduler
+
+            ts?.SetResult(true);
         }
 
 
@@ -75,20 +67,18 @@ namespace MockOrleans
         }
         
 
-        public Task CloseWhenIdle() {
-            _closeRequested = true;
 
+
+        public Task WhenIdle() 
+        {
             lock(_sync) {
-                if(_taskCount == 0) {
-                    _closed = true;
-                }
+                return _taskCount == 0
+                        ? Task.CompletedTask
+                        : _tsOnIdle.Task;
             }
-
-            if(_closed) _tsOnClose.TrySetResult(true);
-            
-            return _tsOnClose.Task;
         }
-                        
+    
+    
 
     }
 }
