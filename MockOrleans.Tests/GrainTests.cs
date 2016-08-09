@@ -1,4 +1,5 @@
 ﻿using MockOrleans;
+using MockOrleans.Grains;
 using NSubstitute;
 using NUnit.Framework;
 using Orleans;
@@ -16,8 +17,7 @@ namespace MockOrleans.Tests
 
     [TestFixture]
     public class GrainTests
-    {
-        
+    {        
         [Test]
         public async Task ReentrantGrainsInterleaveRequests() 
         {
@@ -70,15 +70,13 @@ namespace MockOrleans.Tests
 
         
 
-        //In Orleans proper activation is done as part of creating the activation
-        //so the activation itself doesn't have to bother with the activation logic
 
-        //instead, it's part of creating the GrainHarness: when you request the endpoint,
-        //then a locked activation is carried out. From this point on the harness doesn't care.
+
+
 
 
         [Test]
-        public async Task ReentrantGrainsEnsureOnlyOneActivationRoutine() 
+        public async Task ReentrantGrainsRespectSingleActivationRoutine() 
         {
             var fx = new MockFixture();
             fx.Types.Map<IReentrantActivator, ReentrantActivator>();
@@ -92,9 +90,31 @@ namespace MockOrleans.Tests
         }
 
 
+        [Test]
+        public async Task ReentrantGrainsRespectSingleDeactivationRoutine() 
+        {
+            throw new NotImplementedException();
+            //var fx = new MockFixture();
+            //fx.Types.Map<IReentrantActivator, ReentrantActivator>();
+            //var qActivations = fx.Services.Inject(new ConcurrentQueue<int>());
+
+            //var grain = fx.GrainFactory.GetGrain<IReentrantActivator>(Guid.NewGuid());
+
+            //await Enumerable.Range(0, 10).Select(_ => grain.Hello()).WhenAll();
+
+            //Assert.That(qActivations.Count, Is.EqualTo(1));
+        }
+
+
+
+
+
+
+
         public interface IReentrantActivator : IGrainWithGuidKey
         {
             Task Hello();
+
         }
 
 
@@ -120,82 +140,120 @@ namespace MockOrleans.Tests
 
 
 
+
+
+        [Test]
+        public async Task DeactivationIncursFreshActivation() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IReactivatable, Reactivatable>();
+
+            var recorder = fx.Services.Inject(new ActivationRecorder());
+
+            var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
+
+            await grain.PrecipitateDeactivation();
+
+            await fx.Requests.WhenIdle(); //and what if deactivations and reactivations compete? Once deactivation has started, we're done...
+
+            await grain.Reactivate();
+
+            Assert.That(recorder.Activations, Has.Count.EqualTo(2));
+            Assert.That(recorder.Deactivations, Has.Count.EqualTo(1));
+        }
+
+
+        [Test]
+        public async Task DeactivationReactivationCompetition() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IReactivatable, Reactivatable>();
+
+            var recorder = fx.Services.Inject(new ActivationRecorder());
+
+            var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
+
+            await grain.PrecipitateDeactivation();            
+            await grain.Reactivate();
+            await grain.PrecipitateDeactivation();
+            await grain.Reactivate();
+            await grain.PrecipitateDeactivation();
+            await grain.Reactivate();
+            await grain.PrecipitateDeactivation();
+            await grain.Reactivate();
+
+            await fx.Requests.WhenIdle();
+
+            Assert.That(recorder.Activations, Has.Count.EqualTo(5));
+            Assert.That(recorder.Deactivations, Has.Count.EqualTo(4));
+        }
+
+
+
+
+
         [Test]
         public async Task DeactivatesWhenIdle()
         {
-            var fx = new MockFixture(Substitute.For<IServiceProvider>());            
-            fx.Types.Map<IDeactivatable, Deactivatable>();
-            fx.Types.Map<IDeactivationRecorder, DeactivationRecorder>();
-                        
-            var recorder = fx.GrainFactory.GetGrain<IDeactivationRecorder>(Guid.Empty);
+            var fx = new MockFixture();            
+            fx.Types.Map<IReactivatable, Reactivatable>();
 
-            var deactivatable = fx.GrainFactory.GetGrain<IDeactivatable>(Guid.NewGuid());
-            await deactivatable.SetRecorder(recorder);
+            var recorder = fx.Services.Inject(new ActivationRecorder());
 
-            await deactivatable.PrecipitateDeactivation();
+            var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
 
-            await Task.Delay(15);
-
+            await grain.PrecipitateDeactivation();
+            
             await fx.Requests.WhenIdle();
-            
-            //assert is deactivated here
-            //Assert.That(fx.Silo.IsActive(grain), Is.False);
-            
-            var deactivated = await recorder.IsDeactivated();
-            Assert.That(deactivated, Is.True);            
+
+            Assert.That(recorder.Activations.Single(), Is.EqualTo(grain));
+            Assert.That(recorder.Deactivations.Single(), Is.EqualTo(grain));            
         }
 
         
 
-
-        public interface IDeactivationRecorder : IGrainWithGuidKey
+        
+        public class ActivationRecorder
         {
-            Task SetDeactivated();
-            Task<bool> IsDeactivated();
-        }
-
-        public class DeactivationRecorder : Grain, IDeactivationRecorder
-        {
-            bool _deactivated;
-
-            public Task<bool> IsDeactivated() {
-                return Task.FromResult(_deactivated);
-            }
-
-            public Task SetDeactivated() {
-                _deactivated = true;
-                return Task.CompletedTask;
-            }
+            public ConcurrentBag<IGrain> Activations = new ConcurrentBag<IGrain>();
+            public ConcurrentBag<IGrain> Deactivations = new ConcurrentBag<IGrain>();
         }
 
 
+        
 
-
-
-
-        public interface IDeactivatable : IGrainWithGuidKey
+        public interface IReactivatable : IGrainWithGuidKey
         {
-            Task SetRecorder(IDeactivationRecorder recorder);
+            Task Reactivate();
             Task PrecipitateDeactivation();
         }
 
 
-        public class Deactivatable : Grain, IDeactivatable
+        public class Reactivatable : Grain, IReactivatable
         {
-            IDeactivationRecorder _recorder;
+            ActivationRecorder _recorder;
 
-            public Task SetRecorder(IDeactivationRecorder recorder) {
+            public Reactivatable(ActivationRecorder recorder) {
                 _recorder = recorder;
-                return Task.CompletedTask;
             }
             
+            public Task Reactivate() {
+                return Task.CompletedTask;
+            }
+
             public Task PrecipitateDeactivation() {
                 DeactivateOnIdle();
                 return Task.CompletedTask;
             }
 
+            public override Task OnActivateAsync() {
+                _recorder.Activations.Add(this.CastAs<IReactivatable>()); 
+                return Task.CompletedTask;
+            }
+            
             public override Task OnDeactivateAsync() {
-                return _recorder.SetDeactivated();
+                _recorder.Deactivations.Add(this.CastAs<IReactivatable>());
+                return Task.CompletedTask;
             }
 
         }

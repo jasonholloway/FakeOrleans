@@ -130,31 +130,33 @@ namespace MockOrleans
 
 
 
-        ///// <summary>
-        ///// Use instead of IGrain.AsReference() and IGrain.Cast()!
-        ///// </summary>
-        ///// <typeparam name="T"></typeparam>
-        ///// <param name="this"></param>
-        ///// <returns></returns>
-        //public static T CastAs<T>(this IGrain @this) where T : IGrain {
-        //    //in place to short-circuit Orleans when testing; should always be used
-        //    if(@this.IsMocked()) {
-        //        if(@this is GrainProxy) {
-        //            return (T)@this;
-        //        }
+        /// <summary>
+        /// Use instead of IGrain.AsReference() and IGrain.Cast()!
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="this"></param>
+        /// <returns></returns>
+        public static T CastAs<T>(this IGrain @this) where T : IGrain {
+            //in place to short-circuit Orleans when testing; should always be used
+            
+            if(@this is GrainProxy) {
+                return (T)@this;
+            }
 
-        //        if(@this is Grain) {
-        //            var runtime = ((GrainHarness)ExtractGrainRuntimeFrom(@this)).Runtime;
-        //            var concreteKey = @this.GetConcreteGrainKey();
+            if(@this is Grain) {
+                var harness = ExtractGrainRuntimeFrom(@this) as GrainHarness;
+                
+                if(harness != null) {
+                    var concreteKey = @this.GetConcreteGrainKey();
 
-        //            var grainKey = new ResolvedGrainKey(typeof(T), concreteKey.ConcreteType, concreteKey.Key);
+                    var grainKey = new ResolvedGrainKey(typeof(T), concreteKey.ConcreteType, concreteKey.Key);
 
-        //            return (T)(object)runtime.GetGrainProxy(grainKey);
-        //        }
-        //    }
+                    return (T)(object)harness.Fixture.GetGrainProxy(grainKey);
+                }
+            }
 
-        //    return @this.AsReference<T>();
-        //}
+            return @this.AsReference<T>();
+        }
 
 
         /// <summary>

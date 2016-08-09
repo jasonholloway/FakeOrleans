@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockOrleans", "MockOrleans.csproj", "{666FEF51-0955-4AC9-BA0E-A6D2982CE6A5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockOrleans", "MockOrleans\MockOrleans.csproj", "{666FEF51-0955-4AC9-BA0E-A6D2982CE6A5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockOrleans.Tests", "..\MockOrleans.Tests\MockOrleans.Tests.csproj", "{6523B555-7165-48D8-9475-E538B930627A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockOrleans.Tests", "MockOrleans.Tests\MockOrleans.Tests.csproj", "{6523B555-7165-48D8-9475-E538B930627A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -17,15 +17,15 @@ namespace MockOrleans.Grains
 
     public class GrainTaskScheduler : TaskScheduler, IDisposable
     {
-        TaskScheduler _scheduler;
+        TaskScheduler _innerScheduler;
 
         object _sync = new object();
-        Task _last = Task.FromResult(true);
+        Task _last = Task.CompletedTask;
         CancellationTokenSource _cancelSource;
         CancellationToken _cancelToken;
 
-        public GrainTaskScheduler(TaskScheduler scheduler) {
-            _scheduler = scheduler;
+        public GrainTaskScheduler(TaskScheduler innerScheduler) {
+            _innerScheduler = innerScheduler;
             _cancelSource = new CancellationTokenSource();
             _cancelToken = _cancelSource.Token;
         }
@@ -43,7 +43,7 @@ namespace MockOrleans.Grains
             if(_disposed) throw new ObjectDisposedException(nameof(GrainTaskScheduler));
 
             lock(_sync) {
-                _last = _last.ContinueWith(_ => TryExecuteTask(task), _cancelToken, TaskContinuationOptions.None, _scheduler); //catch exceptions also?                
+                _last = _last.ContinueWith(_ => TryExecuteTask(task), _cancelToken, TaskContinuationOptions.None, _innerScheduler); //catch exceptions also?                
             }
         }
 

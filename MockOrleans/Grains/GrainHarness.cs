@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Threading;
 using System.Collections.Concurrent;
 using Orleans.Concurrency;
+using System.Runtime.InteropServices;
 
 namespace MockOrleans.Grains
 {        
@@ -45,8 +46,10 @@ namespace MockOrleans.Grains
             Grain = grain;
         }
         
-                
-                
+        
+        
+
+
         public async Task Deactivate() 
         {
             await _smActive.WaitAsync();  //uncomfortable with semaphores being used here... for public use should have deactivateonidle only - which we already have below...
@@ -55,7 +58,8 @@ namespace MockOrleans.Grains
                 Timers.Clear();
 
                 await ((Grain)Grain).OnDeactivateAsync();
-                
+
+                _tActivating = null; 
                 Grain = null;
             }
             catch(Exception ex) {
@@ -66,25 +70,30 @@ namespace MockOrleans.Grains
             }
         }
 
+        
+
 
         #region IGrainEndpoint
         
         SemaphoreSlim _smActive = new SemaphoreSlim(1);
-        
+        Task _tActivating = null;
 
-        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn, bool activate = true) 
+        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn) 
         {
+            //single-threaded below - though sometimes interleaved
             var t = new Task<Task<TResult>>(async () => {
-                Requests.Increment();       //PROBLEM NOW OF ENSURING ONLY ONE ACTIVATION IS EMBARKED UPON...
+
+                Requests.Increment();
                 if(Spec.SerializesRequests) await _smActive.WaitAsync();
 
-                try {
-                    if(activate || Grain != null) {
-                        var grain = Grain ?? (Grain = await ActivateGrain());
-                        return await fn();
+                try {               
+                    if(_tActivating == null) {
+                        _tActivating = ActivateGrain();
                     }
-
-                    return default(TResult);
+                    
+                    await _tActivating;
+                    
+                    return await fn();                    
                 }
                 finally {
                     if(Spec.SerializesRequests) _smActive.Release();
@@ -98,17 +107,17 @@ namespace MockOrleans.Grains
         }
 
 
-        public Task Invoke(Func<Task> fn, bool activate = true)
+        public Task Invoke(Func<Task> fn)
             => Invoke(() => fn().Box());
 
         public Task<TResult> Invoke<TResult>(MethodInfo method, object[] args)
-            => Invoke(() => CallMethod<TResult>(method, args), true);
+            => Invoke(() => CallMethod<TResult>(method, args));
 
         
 
 
-        Task<IGrain> ActivateGrain() {
-            return GrainActivator.Activate(this, Fixture.Store, Key);
+        async Task ActivateGrain() {
+            Grain = await GrainActivator.Activate(this, Fixture.Store, Key);
         }
 
 
@@ -128,7 +137,9 @@ namespace MockOrleans.Grains
 
 
         //FOR DEBUGGING ONLY! DON'T USE ELSEWHERE!!!
-        public async Task<IGrain> GetGrain() {
+        public async Task<IGrain> GetGrain() 
+        {
+            Requests.Increment();
             var success = await _smActive.WaitAsync(1000);
 
             if(!success) {
@@ -136,10 +147,15 @@ namespace MockOrleans.Grains
             }
 
             try {
-                return Grain ?? (Grain = await ActivateGrain());
+                if(_tActivating == null) _tActivating = ActivateGrain();
+
+                await _tActivating;
+
+                return Grain;
             }
             finally {
                 _smActive.Release();
+                Requests.Decrement();
             }
         }
         

@@ -73,7 +73,7 @@ namespace MockOrleans.Grains
         public static async Task<IGrain> Activate(IGrainRuntime runtime, IStateStore store, GrainKey key)
         {
             //Debug.WriteLine($"Activating grain {key}");
-
+            
             var creator = new GrainCreator(runtime, runtime.ServiceProvider);
             
             var stateType = GetStateType(key.ConcreteType);

@@ -12,9 +12,9 @@ using System.Collections.Concurrent;
 namespace MockOrleans.Grains
 {
     using FnProxifier = Func<MockFixture, ResolvedGrainKey, GrainProxy>;
+    
 
-
-    public abstract class GrainProxy {
+    public abstract class GrainProxy {  
         
         public MockFixture Fixture;
         public ResolvedGrainKey Key;

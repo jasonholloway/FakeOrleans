@@ -9,8 +9,8 @@ namespace MockOrleans
 {
     public interface IGrainEndpoint
     {
-        Task Invoke(Func<Task> fn, bool activate = true);
-        Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn, bool activate = true);
+        Task Invoke(Func<Task> fn);
+        Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn);
         
         Task<TResult> Invoke<TResult>(MethodInfo method, object[] args);
     }
