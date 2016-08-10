@@ -64,6 +64,7 @@
     <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
     <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
     <Compile Include="Components\ConcurrentDictionary.cs" />
+    <Compile Include="Components\ExceptionSink.cs" />
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\RequestRegistry.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />

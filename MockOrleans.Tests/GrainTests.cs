@@ -17,7 +17,8 @@ namespace MockOrleans.Tests
 
     [TestFixture]
     public class GrainTests
-    {        
+    {   
+             
         [Test]
         public async Task ReentrantGrainsInterleaveRequests() 
         {
@@ -88,33 +89,11 @@ namespace MockOrleans.Tests
 
             Assert.That(qActivations.Count, Is.EqualTo(1));
         }
-
-
-        [Test]
-        public async Task ReentrantGrainsRespectSingleDeactivationRoutine() 
-        {
-            throw new NotImplementedException();
-            //var fx = new MockFixture();
-            //fx.Types.Map<IReentrantActivator, ReentrantActivator>();
-            //var qActivations = fx.Services.Inject(new ConcurrentQueue<int>());
-
-            //var grain = fx.GrainFactory.GetGrain<IReentrantActivator>(Guid.NewGuid());
-
-            //await Enumerable.Range(0, 10).Select(_ => grain.Hello()).WhenAll();
-
-            //Assert.That(qActivations.Count, Is.EqualTo(1));
-        }
-
-
-
-
-
-
+                
 
         public interface IReentrantActivator : IGrainWithGuidKey
         {
             Task Hello();
-
         }
 
 
@@ -154,7 +133,7 @@ namespace MockOrleans.Tests
 
             await grain.PrecipitateDeactivation();
 
-            await fx.Requests.WhenIdle(); //and what if deactivations and reactivations compete? Once deactivation has started, we're done...
+            await fx.Requests.WhenIdle();
 
             await grain.Reactivate();
 
@@ -172,25 +151,19 @@ namespace MockOrleans.Tests
             var recorder = fx.Services.Inject(new ActivationRecorder());
 
             var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
-
-            await grain.PrecipitateDeactivation();            
-            await grain.Reactivate();
-            await grain.PrecipitateDeactivation();
-            await grain.Reactivate();
-            await grain.PrecipitateDeactivation();
-            await grain.Reactivate();
-            await grain.PrecipitateDeactivation();
-            await grain.Reactivate();
-
+            
+            for(int i = 0; i < 10; i++) {
+                await grain.PrecipitateDeactivation();
+                await grain.Reactivate();
+            }
+            
             await fx.Requests.WhenIdle();
 
-            Assert.That(recorder.Activations, Has.Count.EqualTo(5));
-            Assert.That(recorder.Deactivations, Has.Count.EqualTo(4));
+            Assert.That(recorder.Activations, Has.Count.EqualTo(11));
+            Assert.That(recorder.Deactivations, Has.Count.EqualTo(10));
         }
 
-
-
-
+                
 
         [Test]
         public async Task DeactivatesWhenIdle()
@@ -211,15 +184,13 @@ namespace MockOrleans.Tests
         }
 
         
-
         
         public class ActivationRecorder
         {
             public ConcurrentBag<IGrain> Activations = new ConcurrentBag<IGrain>();
             public ConcurrentBag<IGrain> Deactivations = new ConcurrentBag<IGrain>();
         }
-
-
+        
         
 
         public interface IReactivatable : IGrainWithGuidKey
@@ -257,6 +228,81 @@ namespace MockOrleans.Tests
             }
 
         }
+
+        
+
+
+
+
+
+        [Test]
+        public async Task ReentrantGrainsRespectSingleOnDeactivationRequest() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IReentrantDeactivator, ReentrantDeactivator>();
+
+            var callCounts = fx.Services.Inject(new List<int>());
+            
+            var grain = fx.GrainFactory.GetGrain<IReentrantDeactivator>(Guid.NewGuid());
+
+            await grain.Deactivate();
+
+            for(int i = 0; i< 30; i++) {
+                await grain.Yap();
+            }
+                        
+            Assert.That(callCounts, Has.None.GreaterThan(0));
+        }
+
+        
+
+        public interface IReentrantDeactivator : IGrainWithGuidKey
+        {
+            Task Yap();
+            Task Deactivate();
+        }
+
+
+        public class ReentrantDeactivator : Grain, IReentrantDeactivator
+        {
+            int _callCount = 0;
+
+            List<int> _callCounts;
+
+            public ReentrantDeactivator(List<int> callCounts) {
+                _callCounts = callCounts;
+            }
+
+
+            public async Task Yap() {
+                _callCount++;
+                await Task.Delay(15);
+                _callCount--;
+            }
+
+            public Task Deactivate() {
+                this.DeactivateOnIdle();
+                return Task.CompletedTask;
+            }
+
+            public override async Task OnDeactivateAsync() {
+                for(int i = 0; i < 30; i++) {
+                    _callCounts.Add(_callCount);                    
+                    await Task.Delay(15);                    
+                }                
+            }
+            
+        }
+
+
+
+
+
+
+
+
+
+
 
 
 

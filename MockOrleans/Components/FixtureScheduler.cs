@@ -11,10 +11,18 @@ namespace MockOrleans
 
     public class FixtureScheduler : TaskScheduler
     {
+        ExceptionSink _exceptionSink;
+
         object _sync = new object();
         int _taskCount = 0;
         TaskCompletionSource<bool> _tsOnIdle = new TaskCompletionSource<bool>();
-        
+
+
+
+        public FixtureScheduler(ExceptionSink exceptionSink = null) {
+            _exceptionSink = exceptionSink;
+        }
+
 
         protected override IEnumerable<Task> GetScheduledTasks() {
             return Enumerable.Empty<Task>();
@@ -31,7 +39,11 @@ namespace MockOrleans
             try {
                 ThreadPool.QueueUserWorkItem(_ => {
                     try {
-                        TryExecuteTask(task);
+                        TryExecuteTask(task); //No exceptions thrown, as always packaged into task...
+
+                        if(task.IsFaulted) {
+                            _exceptionSink?.Add(task.Exception);
+                        }
                     }
                     finally {
                         DecrementTaskCount();

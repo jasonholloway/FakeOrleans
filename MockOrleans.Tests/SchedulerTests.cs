@@ -17,7 +17,7 @@ namespace MockOrleans.Tests
         public void DisposeCancelsQueuedTasks() 
         {
             var fxScheduler = new FixtureScheduler();            
-            var scheduler = new GrainTaskScheduler(fxScheduler);
+            var scheduler = new GrainTaskScheduler(fxScheduler, new ExceptionSink());
 
             var taskSource = new TaskCompletionSource<bool>();
             var tasks = new List<Task>();

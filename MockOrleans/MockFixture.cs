@@ -14,6 +14,7 @@ namespace MockOrleans
     {
         public readonly FixtureScheduler Scheduler;
         public readonly RequestRegistry Requests;
+        public readonly ExceptionSink Exceptions;
         
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
@@ -30,7 +31,8 @@ namespace MockOrleans
 
         public MockFixture(IServiceProvider services = null) 
         {
-            Scheduler = new FixtureScheduler();
+            Exceptions = new ExceptionSink();
+            Scheduler = new FixtureScheduler(Exceptions);
             Requests = new RequestRegistry(Scheduler);
             Services = new ServiceRegistry(services);          
             Types = new MockTypeMap();

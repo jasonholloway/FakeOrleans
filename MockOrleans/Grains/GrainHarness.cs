@@ -23,6 +23,7 @@ namespace MockOrleans.Grains
         public readonly GrainSpec Spec;
         public readonly TaskScheduler Scheduler;
         public readonly RequestRegistry Requests;
+        public readonly ExceptionSink Exceptions;
         public readonly MockTimerRegistry Timers;
         
         IGrain Grain { get; set; } = null;
@@ -33,7 +34,8 @@ namespace MockOrleans.Grains
             Fixture = fx;
             Key = key;
             Spec = GrainSpec.GetFor(key.ConcreteType);
-            Scheduler = new GrainTaskScheduler(fx.Scheduler);
+            Exceptions = new ExceptionSink(fx.Exceptions);
+            Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
             Requests = new RequestRegistry(Scheduler, fx.Requests);
             Timers = new MockTimerRegistry(this);
         }
@@ -95,6 +97,9 @@ namespace MockOrleans.Grains
                     
                     return await fn();                    
                 }
+                catch(Exception) {
+                    throw; //strangely, swallowing exception unless rethrown
+                }
                 finally {
                     if(Spec.SerializesRequests) _smActive.Release();
                     Requests.Decrement();
@@ -125,7 +130,14 @@ namespace MockOrleans.Grains
         async Task<TResult> CallMethod<TResult>(MethodInfo method, object[] args) 
         {
             if(typeof(TResult).Equals(typeof(VoidType))) {
-                await (Task)method.Invoke(Grain, args);
+
+                try {
+                    await (Task)method.Invoke(Grain, args);
+                }
+                catch(TargetInvocationException ex) {
+                    throw ex.InnerException;
+                }
+                
                 return default(TResult);
             }
                         
