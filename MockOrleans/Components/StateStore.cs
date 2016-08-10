@@ -14,19 +14,12 @@ using System.Threading.Tasks;
 
 namespace MockOrleans
 {
-
-    public interface IStateStore
-    {
-        Task ReadFrom(GrainKey key, IGrainState state);
-        Task WriteTo(GrainKey key, IGrainState state);
-        Task Clear(GrainKey key);
-    }
-
+    
     
 
     public class GrainStorage
     {
-        GrainKey _key;
+        GrainKey _placement;
         MockSerializer _serializer;
 
         public bool IsEmpty { get; private set; } = true;
@@ -36,8 +29,8 @@ namespace MockOrleans
         object _sync = new object();
 
 
-        public GrainStorage(GrainKey key, MockSerializer serializer) {
-            _key = key;
+        public GrainStorage(GrainKey placement, MockSerializer serializer) {
+            _placement = placement;
             _serializer = serializer;
         }
 
@@ -101,55 +94,6 @@ namespace MockOrleans
         }
 
     }
-
-
-
-
-
-    public class MockStore : IStateStore
-    {
-        MockSerializer _serializer;
-        ConcurrentDictionary<GrainKey, byte[]> _dCommits = new ConcurrentDictionary<GrainKey, byte[]>(GrainKeyComparer.Instance);
-
-
-        public MockStore(MockSerializer serializer) {
-            _serializer = serializer;
-        }
-
-
-
-        public virtual Task Clear(GrainKey key) 
-        {
-            byte[] _;
-
-            _dCommits.TryRemove(key, out _);
-
-            return TaskDone.Done;
-        }
-
-        public virtual Task ReadFrom(GrainKey key, IGrainState state) 
-        {
-            byte[] commit = null;
-
-            if(_dCommits.TryGetValue(key, out commit)) {
-                state.State = _serializer.Deserialize(commit);
-            }
-
-            return TaskDone.Done;
-        }
-
-        public virtual Task WriteTo(GrainKey key, IGrainState state) 
-        {
-            _dCommits.AddOrUpdate(key, 
-                        (_) => _serializer.Serialize(state.State), 
-                        (_, __) => _serializer.Serialize(state.State));
-
-            return TaskDone.Done;
-        }
-
-
-
-
-
-    }
+    
+    
 }

@@ -6,34 +6,25 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace MockOrleans
-{
-
-    public interface ITypeMap
-    {
-        void Map(Type abstractType, Type concreteType);
-        Type GetConcreteType(Type abstractType);
-    }
-
-
+{    
 
     public static class TypeMapExtensions
     {
-        public static void Map<TInterface, TImplementation>(this ITypeMap typeMap)
+        public static void Map<TInterface, TImplementation>(this TypeMap typeMap)
             where TImplementation : class, TInterface
             => typeMap.Map(typeof(TInterface), typeof(TImplementation));
     }
+    
 
 
-
-
-
-    public class MockTypeMap : ITypeMap
+    public class TypeMap
     {
         ConcurrentDictionary<Type, Type> _dMap = new ConcurrentDictionary<Type, Type>();
         
         public Type GetConcreteType(Type abstractType) {
             return _dMap.GetOrAdd(abstractType, t => Resolve(t));
         }
+
 
         public void Map(Type abstractType, Type concreteType) 
         {            
@@ -43,6 +34,7 @@ namespace MockOrleans
             _dMap.AddOrUpdate(abstractType, concreteType, (_, __) => concreteType);
         }
         
+
         Type Resolve(Type abstractType) 
         {
             Require.That(!abstractType.IsGenericTypeDefinition);
@@ -50,9 +42,7 @@ namespace MockOrleans
             Type concreteType = null;
 
             if(!_dMap.TryGetValue(abstractType, out concreteType)) {
-
                 //no exact match, but if we're generic, we have one further option
-
                 if(abstractType.IsGenericType) {
                     Type concreteTypeDef = null;
                     var abstractTypeDef = abstractType.GetGenericTypeDefinition();

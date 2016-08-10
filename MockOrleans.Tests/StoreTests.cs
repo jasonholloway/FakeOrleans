@@ -11,7 +11,8 @@ namespace MockOrleans.Tests
 {
     [TestFixture]
     public class StoreTests
-    {        
+    {       
+        
 
         [Test]
         public async Task GrainPersistsToStorage() 
@@ -19,7 +20,7 @@ namespace MockOrleans.Tests
             var fx = new MockFixture();
             fx.Types.Map<IDogStorer, DogStorer>();
             fx.Services.Inject(new Dog()); //needed
-
+            
             var grain = fx.GrainFactory.GetGrain<IDogStorer>(Guid.NewGuid());
             
             await grain.Write(new Dog("Kevin"));
@@ -47,7 +48,7 @@ namespace MockOrleans.Tests
             store.Update(new Dog("Geoffrey"));
 
             var result = await grain.Read();
-
+            
             Assert.That(result.Name, Is.EqualTo("Geoffrey"));
         }
 

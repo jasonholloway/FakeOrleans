@@ -179,7 +179,7 @@ namespace MockOrleans
 
             if(status != ReminderState.Cancelled) {
                 _fx.Requests.Perform(async () => {
-                    var endpoint = _fx.Silo.GetGrainEndpoint(_key);
+                    var endpoint = _fx.Grains.GetGrainEndpoint(_key);
                     await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
                 });
             }

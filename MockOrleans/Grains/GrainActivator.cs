@@ -19,49 +19,49 @@ namespace MockOrleans.Grains
     using FnStateExtractor = Func<Grain, IGrainState>;
 
 
-    class StorageProviderAdaptor : IStorageProvider
-    {
-        GrainKey _key;
-        IStateStore _store;
+    //class StorageProviderAdaptor : IStorageProvider
+    //{
+    //    GrainKey _key;
+    //    IStateStore _store;
 
-        public StorageProviderAdaptor(GrainKey key, IStateStore store) {
-            _key = key;
-            _store = store;
-        }
+    //    public StorageProviderAdaptor(GrainKey key, IStateStore store) {
+    //        _key = key;
+    //        _store = store;
+    //    }
 
-        public Task ClearStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-            => _store.Clear(_key);
+    //    public Task ClearStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
+    //        => _store.Clear(_key);
         
-        public Task ReadStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-            => _store.ReadFrom(_key, grainState);
+    //    public Task ReadStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
+    //        => _store.ReadFrom(_key, grainState);
 
-        public Task WriteStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-            => _store.WriteTo(_key, grainState);
+    //    public Task WriteStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
+    //        => _store.WriteTo(_key, grainState);
 
-        #region IProvider
+    //    #region IProvider
 
-        public Logger Log {
-            get {
-                throw new NotImplementedException();
-            }
-        }
+    //    public Logger Log {
+    //        get {
+    //            throw new NotImplementedException();
+    //        }
+    //    }
 
-        public string Name {
-            get {
-                throw new NotImplementedException();
-            }
-        }
+    //    public string Name {
+    //        get {
+    //            throw new NotImplementedException();
+    //        }
+    //    }
 
-        public Task Close() {
-            throw new NotImplementedException();
-        }
+    //    public Task Close() {
+    //        throw new NotImplementedException();
+    //    }
 
-        public Task Init(string name, IProviderRuntime providerRuntime, IProviderConfiguration config) {
-            throw new NotImplementedException();
-        }
+    //    public Task Init(string name, IProviderRuntime providerRuntime, IProviderConfiguration config) {
+    //        throw new NotImplementedException();
+    //    }
 
-        #endregion
-    }
+    //    #endregion
+    //}
     
 
     public static class GrainActivator
@@ -70,22 +70,23 @@ namespace MockOrleans.Grains
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
 
 
-        public static async Task<IGrain> Activate(IGrainRuntime runtime, GrainKey key, GrainStorage grainStorage)
+        public static async Task<IGrain> Activate(IGrainRuntime runtime, GrainPlacement placement, GrainStorage grainStorage)
         {
-            //Debug.WriteLine($"Activating grain {key}");
-            
+            var key = placement.Key;
+            var grainType = key.ConcreteType;
+
             var creator = new GrainCreator(runtime, runtime.ServiceProvider);
             
-            var stateType = GetStateType(key.ConcreteType);
+            var stateType = GetStateType(grainType);
 
             var grain = stateType != null
-                            ? creator.CreateGrainInstance(key.ConcreteType, key, stateType, new DummyStorageProvider()) //IStorage will be hackily assigned below      // new StorageProviderAdaptor(key, store))
-                            : creator.CreateGrainInstance(key.ConcreteType, key);
+                            ? creator.CreateGrainInstance(grainType, key, stateType, new DummyStorageProvider()) //IStorage will be hackily assigned below      // new StorageProviderAdaptor(key, store))
+                            : creator.CreateGrainInstance(grainType, key);
             
             
             if(stateType != null) {
-                var fnStateExtractor = _dStateExtractors.GetOrAdd(key.ConcreteType, t => BuildStateExtractor(t));
-                var fnStorageAssign = _dStorageAssigners.GetOrAdd(key.ConcreteType, t => BuildStorageAssigner(t));
+                var fnStateExtractor = _dStateExtractors.GetOrAdd(grainType, t => BuildStateExtractor(t));
+                var fnStorageAssign = _dStorageAssigners.GetOrAdd(grainType, t => BuildStorageAssigner(t));
 
                 var grainState = fnStateExtractor(grain);
 

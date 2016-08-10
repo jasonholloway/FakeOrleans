@@ -15,6 +15,4 @@ namespace MockOrleans
         Task<TResult> Invoke<TResult>(MethodInfo method, object[] args);
     }
 
-    public class VoidType { }
-
 }

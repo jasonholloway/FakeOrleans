@@ -19,7 +19,7 @@ namespace MockOrleans.Grains
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
         public readonly MockFixture Fixture;
-        public readonly GrainKey Key;
+        public readonly GrainPlacement Placement;
         public readonly GrainSpec Spec;
         public readonly TaskScheduler Scheduler;
         public readonly RequestRegistry Requests;
@@ -29,11 +29,11 @@ namespace MockOrleans.Grains
         IGrain Grain { get; set; } = null;
         
         
-        public GrainHarness(MockFixture fx, GrainKey key) 
+        public GrainHarness(MockFixture fx, GrainPlacement placement) 
         {
             Fixture = fx;
-            Key = key;
-            Spec = GrainSpec.GetFor(key.ConcreteType);
+            Placement = placement;
+            Spec = GrainSpec.GetFor(placement.Key.ConcreteType);
             Exceptions = new ExceptionSink(fx.Exceptions);
             Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
             Requests = new RequestRegistry(Scheduler, fx.Requests);
@@ -42,8 +42,8 @@ namespace MockOrleans.Grains
 
 
         //specially for injecting
-        public GrainHarness(MockFixture fx, GrainKey key, IGrain grain) 
-            : this(fx, key)
+        public GrainHarness(MockFixture fx, GrainPlacement placement, IGrain grain) 
+            : this(fx, placement)
         {
             Grain = grain;
         }
@@ -122,7 +122,7 @@ namespace MockOrleans.Grains
 
 
         async Task ActivateGrain() {
-            Grain = await GrainActivator.Activate(this, Key, Fixture.Stores[Key]);
+            Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
         }
 
 
@@ -189,7 +189,7 @@ namespace MockOrleans.Grains
         }
 
         IReminderRegistry IGrainRuntime.ReminderRegistry {
-            get { return Fixture.Reminders.GetRegistry(Key); }
+            get { return Fixture.Reminders.GetRegistry(Placement.Key); }
         }
 
         IStreamProviderManager IGrainRuntime.StreamProviderManager {

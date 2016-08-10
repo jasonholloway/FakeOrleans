@@ -39,7 +39,7 @@ namespace MockOrleans
 
             if(@this is Grain) {
                 var harness = (GrainHarness)ExtractGrainRuntimeFrom(@this);
-                return harness.Key;
+                return harness.Placement.Key;
             }
 
             //otherwise have to delve into private stuff - orleans etc etc

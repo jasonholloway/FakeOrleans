@@ -63,7 +63,7 @@
   <ItemGroup>
     <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
     <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
-    <Compile Include="Components\ConcurrentDictionary.cs" />
+    <Compile Include="Bits\VoidType.cs" />
     <Compile Include="Components\ExceptionSink.cs" />
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\RequestRegistry.cs" />
@@ -89,10 +89,10 @@
     <Compile Include="Grains\GrainTaskScheduler.cs" />
     <Compile Include="Grains\IGrainEndpoint.cs" />
     <Compile Include="Grains\MockGrainFactory.cs" />
-    <Compile Include="Grains\MockSerializer.cs" />
+    <Compile Include="Components\MockSerializer.cs" />
     <Compile Include="Hacks\CastingHack.cs" />
     <Compile Include="MockFixture.cs" />
-    <Compile Include="MockSilo.cs" />
+    <Compile Include="Components\GrainRegistry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StreamKey.cs" />
   </ItemGroup>

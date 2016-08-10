@@ -303,6 +303,31 @@ namespace MockOrleans.Tests
 
 
 
+        [Test]
+        public void SamePlacementGetsSameActivation() //though same key may get diff placements
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IEmptyGrain, EmptyGrain>();
+            
+            var key = new GrainKey(typeof(EmptyGrain), Guid.NewGuid());
+            var placement = fx.Grains.GetPlacement(key);
+
+            var activations = Enumerable.Range(0, 50)
+                                        .Select(_ => fx.Grains.GetActivation(placement))
+                                        .ToArray();
+
+            Assert.That(activations.All(a => a == activations.First()));
+        }
+
+        
+
+        public interface IEmptyGrain : IGrainWithGuidKey
+        { }
+
+        public class EmptyGrain : Grain, IEmptyGrain
+        { }
+
+
 
 
 

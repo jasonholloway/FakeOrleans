@@ -51,7 +51,7 @@ namespace MockOrleans.Grains
                 //}
             }
 
-            var endpoint = Fixture.Silo.GetGrainEndpoint(Key);
+            var endpoint = Fixture.Grains.GetGrainEndpoint(Key);
 
             return endpoint.Invoke<TResult>(method, args);
         }
@@ -202,7 +202,7 @@ namespace MockOrleans.Grains
 
 
         public TGrain Grain {
-            get { return (TGrain)((GrainHarness)Fixture.Silo.GetGrainEndpoint(Key)).GetGrain().Result; } //for debugging only!
+            get { return (TGrain)((GrainHarness)Fixture.Grains.GetGrainEndpoint(Key)).GetGrain().Result; } //for debugging only!
         }
 
 
