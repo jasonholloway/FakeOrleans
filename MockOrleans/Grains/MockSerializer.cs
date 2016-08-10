@@ -9,6 +9,15 @@ using System.Threading.Tasks;
 
 namespace MockOrleans.Grains
 {
+
+    public static class MockSerializerExtensions
+    {
+        public static T Clone<T>(this MockSerializer @this, T source)
+            => (T)@this.Deserialize(@this.Serialize(source));
+    }
+
+
+
     public class MockSerializer
     {
         MockFixture _fx;

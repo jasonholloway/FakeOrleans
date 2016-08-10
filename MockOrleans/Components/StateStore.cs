@@ -62,7 +62,7 @@ namespace MockOrleans
         internal void Write(IGrainState grainState) {
             lock(_sync) {
                 ETag = grainState.ETag;
-                State = grainState.State;
+                State = _serializer.Clone(grainState.State);
                 IsEmpty = false;
             }
         }
@@ -71,7 +71,7 @@ namespace MockOrleans
             lock(_sync) {
                 if(!IsEmpty) {
                     grainState.ETag = ETag;
-                    grainState.State = State;
+                    grainState.State = _serializer.Clone(State);
                 }
             }
         }

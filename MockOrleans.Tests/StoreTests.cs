@@ -59,7 +59,7 @@ namespace MockOrleans.Tests
             var fx = new MockFixture();
             fx.Types.Map<IDogStorer, DogStorer>();
 
-            var injected = fx.Services.Inject(new Dog("Rupert"));
+            var injected = fx.Services.Inject(new Dog("Flump"));
 
             var grain = fx.GrainFactory.GetGrain<IDogStorer>(Guid.NewGuid());
 
@@ -107,7 +107,7 @@ namespace MockOrleans.Tests
         }
 
 
-
+        [Serializable]
         public class Dog
         {
             public string Name { get; set; }
