@@ -70,7 +70,7 @@ namespace MockOrleans.Grains
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
 
 
-        public static async Task<IGrain> Activate(IGrainRuntime runtime, IStateStore store, GrainKey key)
+        public static async Task<IGrain> Activate(IGrainRuntime runtime, GrainKey key, GrainStorage grainStorage)
         {
             //Debug.WriteLine($"Activating grain {key}");
             
@@ -89,10 +89,10 @@ namespace MockOrleans.Grains
 
                 var grainState = fnStateExtractor(grain);
 
-                var storage = new StoreBridge(store, key, grainState);
-                fnStorageAssign(grain, storage);
+                var bridge = new StoreBridge(grainStorage, grainState);
+                fnStorageAssign(grain, bridge);
 
-                await storage.ReadStateAsync();
+                await bridge.ReadStateAsync();                
             }
 
             await grain.OnActivateAsync();
@@ -169,35 +169,32 @@ namespace MockOrleans.Grains
         static PropertyInfo _pGrainStateState = typeof(IGrainState).GetProperty("State");
 
 
-
-
-
-
+        
 
         class StoreBridge : IStorage
         {
-            public IStateStore Store { get; private set; }
-            public GrainKey Key { get; private set; }
+            public GrainStorage Storage { get; private set; }
             public IGrainState State { get; private set; }
 
-            public StoreBridge(IStateStore store, GrainKey key, IGrainState state) {
-                Store = store;
-                Key = key;
+            public StoreBridge(GrainStorage storage, IGrainState state) {
+                Storage = storage;
                 State = state;
             }
 
             public Task ClearStateAsync() {
-                return Store.Clear(Key);
+                Storage.Clear();
+                return Task.CompletedTask;
             }
 
             public Task WriteStateAsync() {
-                return Store.WriteTo(Key, State);
+                Storage.Write(State);
+                return Task.CompletedTask;
             }
 
             public Task ReadStateAsync() {
-                return Store.ReadFrom(Key, State);
+                Storage.Read(State);
+                return Task.CompletedTask;
             }
-
         }
 
 

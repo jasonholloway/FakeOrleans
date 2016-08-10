@@ -98,7 +98,7 @@ namespace MockOrleans.Grains
                     return await fn();                    
                 }
                 catch(Exception) {
-                    throw; //strangely, swallowing exception unless rethrown
+                    throw; //strangely, swallowing exception unless rethrown (really???)
                 }
                 finally {
                     if(Spec.SerializesRequests) _smActive.Release();
@@ -122,7 +122,7 @@ namespace MockOrleans.Grains
 
 
         async Task ActivateGrain() {
-            Grain = await GrainActivator.Activate(this, Fixture.Store, Key);
+            Grain = await GrainActivator.Activate(this, Key, Fixture.Stores[Key]);
         }
 
 

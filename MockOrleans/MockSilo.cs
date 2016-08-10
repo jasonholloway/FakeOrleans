@@ -19,7 +19,7 @@ namespace MockOrleans
 
         public MockSilo(MockFixture fx) {
             Fixture = fx;
-            Harnesses = new ConcurrentDictionary<GrainKey, GrainHarness>(ConcreteGrainKeyComparer.Instance);
+            Harnesses = new ConcurrentDictionary<GrainKey, GrainHarness>(GrainKeyComparer.Instance);
         }
 
 

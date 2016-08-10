@@ -37,7 +37,7 @@ namespace MockOrleans.Grains
                 var arg = args[i];
 
                 if(arg is Grain) { //proxify before passing to grain method
-                    var argKey = ((IGrain)arg).GetConcreteGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
+                    var argKey = ((IGrain)arg).GetGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
 
                     var param = method.GetParameters()[i];
 
@@ -209,19 +209,19 @@ namespace MockOrleans.Grains
 
         bool IEquatable<TGrain>.Equals(TGrain other) {
             var x = (GrainProxy<TGrain>)(object)other;
-            return x != null && ConcreteGrainKeyComparer.Instance.Equals(Key, x.Key);
+            return x != null && GrainKeyComparer.Instance.Equals(Key, x.Key);
         }
 
         public override bool Equals(object obj) {
             if(obj is GrainProxy<TGrain>) {
-                return ConcreteGrainKeyComparer.Instance.Equals(Key, ((GrainProxy<TGrain>)obj).Key);
+                return GrainKeyComparer.Instance.Equals(Key, ((GrainProxy<TGrain>)obj).Key);
             }
 
             return false;
         }
 
         public override int GetHashCode() {
-            return ConcreteGrainKeyComparer.Instance.GetHashCode(Key) + 13;
+            return GrainKeyComparer.Instance.GetHashCode(Key) + 13;
         }
         
         

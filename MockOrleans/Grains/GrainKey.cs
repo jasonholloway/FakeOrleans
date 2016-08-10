@@ -111,9 +111,9 @@ namespace MockOrleans
     }
 
 
-    public class ConcreteGrainKeyComparer : IEqualityComparer<GrainKey>
+    public class GrainKeyComparer : IEqualityComparer<GrainKey>
     {
-        public readonly static ConcreteGrainKeyComparer Instance = new ConcreteGrainKeyComparer();
+        public readonly static GrainKeyComparer Instance = new GrainKeyComparer();
 
         public bool Equals(GrainKey x, GrainKey y) {
             return x.ConcreteType == y.ConcreteType

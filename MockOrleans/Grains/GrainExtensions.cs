@@ -32,7 +32,7 @@ namespace MockOrleans
 
 
 
-        public static GrainKey GetConcreteGrainKey(this IGrain @this) {
+        public static GrainKey GetGrainKey(this IGrain @this) {
             if(@this is GrainProxy) {
                 return ((GrainProxy)@this).Key;
             }
@@ -147,7 +147,7 @@ namespace MockOrleans
                 var harness = ExtractGrainRuntimeFrom(@this) as GrainHarness;
                 
                 if(harness != null) {
-                    var concreteKey = @this.GetConcreteGrainKey();
+                    var concreteKey = @this.GetGrainKey();
 
                     var grainKey = new ResolvedGrainKey(typeof(T), concreteKey.ConcreteType, concreteKey.Key);
 
