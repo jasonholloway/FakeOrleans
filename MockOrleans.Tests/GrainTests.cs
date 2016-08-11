@@ -294,12 +294,7 @@ namespace MockOrleans.Tests
             
         }
 
-
-
-
-
-
-
+        
 
 
 
@@ -311,11 +306,11 @@ namespace MockOrleans.Tests
             
             var key = new GrainKey(typeof(EmptyGrain), Guid.NewGuid());
             var placement = fx.Grains.GetPlacement(key);
-
+                        
             var activations = Enumerable.Range(0, 50)
                                         .Select(_ => fx.Grains.GetActivation(placement))
                                         .ToArray();
-
+            
             Assert.That(activations.All(a => a == activations.First()));
         }
 
@@ -327,6 +322,11 @@ namespace MockOrleans.Tests
         public class EmptyGrain : Grain, IEmptyGrain
         { }
 
+
+
+
+
+              
 
 
 

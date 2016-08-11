@@ -33,6 +33,9 @@ namespace MockOrleans
 
     public static class GrainPlacementExtensions
     {
+        public static GrainHarness GetActivation(this GrainPlacement placement)
+            => placement.Registry.GetActivation(placement);
+
     }
 
 

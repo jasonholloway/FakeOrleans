@@ -45,10 +45,9 @@ namespace MockOrleans.Grains
                                         
                     args[i] = Proxify(Fixture, grainKey);
                 }
-                //else if(!(arg is GrainProxy)) {
-                //    //otherwise clone via serialization...                    
-                //    args[i] = arg.DeepClone();
-                //}
+                else if(!(arg is GrainProxy)) {                  
+                    args[i] = Fixture.Serializer.Clone(arg);
+                }
             }
 
             var endpoint = Fixture.Grains.GetGrainEndpoint(Key);

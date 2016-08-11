@@ -86,26 +86,37 @@ namespace MockOrleans
     }
 
 
-    
+
+
+
+
     public class MockStream<T> : IAsyncStream<T>
     {
-        public Guid Guid { get; set; }        
-        public bool IsRewindable { get; set; }
-        public string Namespace { get; set; }        
-        public string ProviderName { get; set; }
+        public readonly MockStreamProvider Provider;
+        public readonly Guid StreamId;
+        public readonly string Namespace;
+        
+        public bool IsRewindable { get; private set; }       
+        public string ProviderName { get; private set; }
 
         ConcurrentQueue<T> _items = new ConcurrentQueue<T>();
 
         ConcurrentBag<IAsyncObserver<T>> _observers = new ConcurrentBag<IAsyncObserver<T>>();
 
-
-        public IEnumerable<T> Items {
-            get { return _items.ToArray(); }
+        
+        public MockStream(MockStreamProvider provider, Guid streamId, string @namespace) {
+            Provider = provider;
+            StreamId = streamId;
+            Namespace = @namespace;
         }
- 
+
+                
 
         public Task OnNextAsync(T item, StreamSequenceToken token = null) 
         {
+            //no buffer, but sending of requests to all subscribers
+            //a spy here can collect what it likes
+
             _items.Enqueue(item);
             
             return _observers.ToArray().AsParallel()
@@ -124,6 +135,23 @@ namespace MockOrleans
                             (StreamSubscriptionHandle<T>)new SubscriptionHandle()
                             ); //good enough for now
         }
+
+
+
+        public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc = null, object filterData = null) {
+            throw new NotImplementedException();
+        }
+
+
+        public int CompareTo(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+        public bool Equals(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+
 
 
         class SubscriptionHandle : StreamSubscriptionHandle<T>
@@ -154,18 +182,9 @@ namespace MockOrleans
         }
 
 
-        public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc = null, object filterData = null) {
-            throw new NotImplementedException();
-        }
 
 
-        public int CompareTo(IAsyncStream<T> other) {
-            throw new NotImplementedException();
-        }
 
-        public bool Equals(IAsyncStream<T> other) {
-            throw new NotImplementedException();
-        }
 
         public Task<IList<StreamSubscriptionHandle<T>>> GetAllSubscriptionHandles() {
             throw new NotImplementedException();
@@ -178,6 +197,65 @@ namespace MockOrleans
         public Task OnErrorAsync(Exception ex) {
             throw new NotImplementedException();
         }
+
+        Task<IList<StreamSubscriptionHandle<T>>> IAsyncStream<T>.GetAllSubscriptionHandles() {
+            throw new NotImplementedException();
+        }
+
+        bool IEquatable<IAsyncStream<T>>.Equals(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+        int IComparable<IAsyncStream<T>>.CompareTo(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+        Task<StreamSubscriptionHandle<T>> IAsyncObservable<T>.SubscribeAsync(IAsyncObserver<T> observer) {
+            throw new NotImplementedException();
+        }
+
+        Task<StreamSubscriptionHandle<T>> IAsyncObservable<T>.SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc, object filterData) {
+            throw new NotImplementedException();
+        }
+
+        Task IAsyncBatchObserver<T>.OnNextBatchAsync(IEnumerable<T> batch, StreamSequenceToken token) {
+            throw new NotImplementedException();
+        }
+
+        Task IAsyncObserver<T>.OnNextAsync(T item, StreamSequenceToken token) {
+            throw new NotImplementedException();
+        }
+
+        Task IAsyncObserver<T>.OnCompletedAsync() {
+            throw new NotImplementedException();
+        }
+
+        Task IAsyncObserver<T>.OnErrorAsync(Exception ex) {
+            throw new NotImplementedException();
+        }
+
+
+
+
+        bool IAsyncStream<T>.IsRewindable {
+            get { return false; }
+        }
+
+        string IAsyncStream<T>.ProviderName {
+            get { return Provider.Name; }
+        }
+
+
+
+        Guid IStreamIdentity.Guid {
+            get { return StreamId; }
+        }
+
+        string IStreamIdentity.Namespace {
+            get { return Namespace; }
+        }
+
+
 
     }
 
