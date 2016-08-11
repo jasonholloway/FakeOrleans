@@ -63,17 +63,9 @@ namespace MockOrleans
             }
         }
 
-        public IAsyncStream<T> GetStream<T>(Guid streamId, string streamNamespace) 
-        {
+        public IAsyncStream<T> GetStream<T>(Guid streamId, string streamNamespace) {
             var key = $"{streamNamespace}_{streamId}";
-
-            return (IAsyncStream<T>)_dStreams
-                                        .GetOrAdd(key, k => new MockStream<T>() {
-                                                                    Guid = streamId,
-                                                                    Namespace = streamNamespace,
-                                                                    ProviderName = Name,
-                                                                    IsRewindable = false
-                                                                });
+            return (IAsyncStream<T>)_dStreams.GetOrAdd(key, k => new MockStream<T>(this, streamId, streamNamespace));
         }
 
         Task IProvider.Init(string name, IProviderRuntime providerRuntime, IProviderConfiguration config) {
