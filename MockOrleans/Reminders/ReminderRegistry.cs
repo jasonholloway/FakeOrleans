@@ -37,7 +37,13 @@ namespace MockOrleans.Reminders
             => _dRegistries.Values.ToArray()
                     .Select(r => r.FireAndCancelAll())
                     .WhenAll();
-        
+
+        public Task FireAll()
+            => _dRegistries.Values.ToArray()
+                    .Select(r => r.FireAll())
+                    .WhenAll();
+
+
 
         double _speed = 1;
         object _speedSync = new object();
@@ -87,12 +93,9 @@ namespace MockOrleans.Reminders
             await UnregisterReminder(reminderName);
             
             var reminder = new Reminder(_fx, _grainKey, reminderName);
-
             _reminders[reminderName] = reminder;
 
             reminder.Schedule(dueTime, period);
-            
-            //_fx.Requests.Perform(() => reminder.Schedule(dueTime, period)); //but scheduling should be tracked - the first execution, less so...
             
             return reminder;
         }
@@ -132,10 +135,22 @@ namespace MockOrleans.Reminders
                     .WhenAll();
         }
 
+        public Task FireAll() 
+        {
+            var reminders = _reminders;
+
+            return reminders.Values
+                    .Select(r => r.FireAndWait())
+                    .WhenAll();
+        }
+
+
+
+
 
     }
 
-    
+
 
 
 

@@ -28,8 +28,7 @@ namespace MockOrleans.Reminders
         volatile ReminderState _status;
 
         Queue<Task> _tasks;
-        CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
-        CancellationToken _cancelToken;
+        CancellationTokenSource _cancelTokenSource;
 
 
         public Reminder(MockFixture fx, GrainKey key, string name) {
@@ -38,7 +37,7 @@ namespace MockOrleans.Reminders
             _name = name;
 
             _status = ReminderState.Normal;
-            _cancelToken = _cancelTokenSource.Token;
+            _cancelTokenSource = new CancellationTokenSource();
 
             _tasks = new Queue<Task>();
         }
@@ -59,7 +58,7 @@ namespace MockOrleans.Reminders
             try {
                 if(_status == ReminderState.Cancelled) return;
 
-                var task = Task.Delay(adjustedDue, _cancelToken)
+                var task = Task.Delay(adjustedDue, _cancelTokenSource.Token)
                             .ContinueWith(async _ => {
                                 var status = _status;
 
@@ -90,8 +89,13 @@ namespace MockOrleans.Reminders
             _cancelTokenSource.Cancel();
             
             _sm.Wait();
-            
-            return Task.WhenAll(_tasks);
+
+            try {
+                return Task.WhenAll(_tasks);
+            }
+            finally {
+                _sm.Release();
+            }
         }
 
 
@@ -102,8 +106,32 @@ namespace MockOrleans.Reminders
 
             _sm.Wait();
 
-            return Task.WhenAll(_tasks);
+            try {
+                return Task.WhenAll(_tasks);
+            }
+            finally {
+                _sm.Release();
+            }
         }
+
+
+        public Task FireAndWait() 
+        {
+            var tokenSource = Interlocked.Exchange(ref _cancelTokenSource, new CancellationTokenSource());
+
+            _status = ReminderState.Normal;
+            tokenSource.Cancel();
+
+            _sm.Wait();
+
+            try {
+                return Task.WhenAll(_tasks);   
+            }
+            finally {
+                _sm.Release();
+            }
+        }
+
 
 
 
