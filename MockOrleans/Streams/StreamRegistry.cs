@@ -28,7 +28,10 @@ namespace MockOrleans.Streams
 
         
         IStreamHub CreateStream<T>(StreamKey key) {
-            return new StreamHub<T>(Fixture.Grains);
+
+            throw new NotImplementedException();
+
+            //return new StreamHub<T>(Fixture.Grains);
         }
         
     }

@@ -72,11 +72,11 @@ namespace MockOrleans.Streams
         #endregion
 
 
-        public Subscription Subscribe(GrainKey grainKey) 
+        Subscription Subscribe(GrainKey grainKey) 
         {
             var handle = new SubscriptionHandle(Key, grainKey, _streamReg);
             
-            var subscription = new Subscription(handle, grainKey);
+            var subscription = new Subscription(handle, _grainReg);
                         
             _dSubscriptions.AddOrUpdate(handle, subscription, (_, __) => { throw new InvalidOperationException("Subscription already exists!"); });
 
@@ -94,13 +94,15 @@ namespace MockOrleans.Streams
                 _grainKey = grainKey;
             }
 
-            public Task<SubscriptionHandle> SubscribeAsync(IAsyncObserver<T> observer) 
+            public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer) 
             { 
                 var subscription = _stream.Subscribe(_grainKey); //and also need to pass the observer in here somehow
-                
-                subscription.SetObserver(observer); //this shouldn't be done directly to stream, but to the local subscription...
 
-                return Task.FromResult(subscription.Handle);
+                throw new NotImplementedException();
+
+                //subscription.SetObserver(observer); //this shouldn't be done directly to stream, but to the local subscription...
+
+                //return Task.FromResult(subscription.Handle);
             }
 
             public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc = null, object filterData = null) {

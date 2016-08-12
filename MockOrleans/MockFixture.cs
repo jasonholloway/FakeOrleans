@@ -1,4 +1,5 @@
 ﻿using MockOrleans.Grains;
+using MockOrleans.Streams;
 using Orleans;
 using System;
 using System.Collections.Concurrent;
@@ -39,7 +40,7 @@ namespace MockOrleans
             Types = new TypeMap();
             GrainFactory = new MockGrainFactory(this);
             Stores = new StorageRegistry(Serializer);
-            Streams = new StreamRegistry();
+            Streams = new StreamRegistry(this);
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
             Grains = new GrainRegistry(this);

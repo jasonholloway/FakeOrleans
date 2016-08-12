@@ -193,7 +193,7 @@ namespace MockOrleans.Grains
         }
 
         IStreamProviderManager IGrainRuntime.StreamProviderManager {
-            get { return Fixture.Streams; }
+            get { throw new NotImplementedException(); }
         }
 
         IServiceProvider IGrainRuntime.ServiceProvider {
