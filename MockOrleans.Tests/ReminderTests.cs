@@ -27,8 +27,7 @@ namespace MockOrleans.Tests
 
             await grain.ScheduleReminder();
             
-            fx.Reminders.FireAndCancelAll();
-            await fx.Requests.WhenIdle();
+            await fx.Reminders.FireAndCancelAll();
             
             Assert.That(resultBag.Count, Is.EqualTo(1));
         }

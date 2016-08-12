@@ -25,12 +25,11 @@ namespace MockOrleans.Reminders
         GrainKey _key;
         MockFixture _fx;
 
-        CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
-        CancellationToken _cancelToken;
-
         volatile ReminderState _status;
 
-        ConcurrentQueue<Task> _tasks;
+        Queue<Task> _tasks;
+        CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
+        CancellationToken _cancelToken;
 
 
         public Reminder(MockFixture fx, GrainKey key, string name) {
@@ -40,47 +39,72 @@ namespace MockOrleans.Reminders
 
             _status = ReminderState.Normal;
             _cancelToken = _cancelTokenSource.Token;
-            _tasks = new ConcurrentQueue<Task>();
+
+            _tasks = new Queue<Task>();
         }
 
 
         static MethodInfo _mReceiveRemindable = typeof(IRemindable).GetMethod("ReceiveReminder");
 
 
+        SemaphoreSlim _sm = new SemaphoreSlim(1);
+
+
         public void Schedule(TimeSpan due, TimeSpan period) 
         {
             var adjustedDue = TimeSpan.FromMilliseconds(due.TotalMilliseconds / _fx.Reminders.Speed);
             
-            var task = Task.Delay(adjustedDue, _cancelToken)
-                        .ContinueWith(async _ => {
-                            var status = _status;
+            _sm.Wait();
 
-                            if(status == ReminderState.Normal) {
-                                Schedule(period, period);
-                            }
+            try {
+                if(_status == ReminderState.Cancelled) return;
 
-                            if(status != ReminderState.Cancelled) {
-                                var endpoint = _fx.Grains.GetGrainEndpoint(_key);
-                                await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
-                            }
+                var task = Task.Delay(adjustedDue, _cancelToken)
+                            .ContinueWith(async _ => {
+                                var status = _status;
 
-                        }, _cancelToken, TaskContinuationOptions.OnlyOnRanToCompletion, _fx.Scheduler)
-                        .Unwrap();
-            
-            _tasks.Enqueue(task);
+                                if(status == ReminderState.Normal) {
+                                    Schedule(period, period);
+                                }
+
+                                if(status != ReminderState.Cancelled) {
+                                    var endpoint = _fx.Grains.GetGrainEndpoint(_key);
+                                    await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
+                                }
+
+                            }, _fx.Scheduler)
+                            .Unwrap();
+
+                _tasks.Enqueue(task); //non-important memory leak
+            }
+            finally {
+                _sm.Release();
+            }
         }
 
+        
 
-        public void FireAndClear() {
-            _status = ReminderState.OneShot;
-            _cancelTokenSource.Cancel();
-        }
-
-
-        public void Clear() {
+        public Task ClearAndWait() 
+        {
             _status = ReminderState.Cancelled;
             _cancelTokenSource.Cancel();
+            
+            _sm.Wait();
+            
+            return Task.WhenAll(_tasks);
         }
+
+
+        public Task FireClearAndWait() 
+        {
+            _status = ReminderState.OneShot;
+            _cancelTokenSource.Cancel();
+
+            _sm.Wait();
+
+            return Task.WhenAll(_tasks);
+        }
+
 
 
         string IGrainReminder.ReminderName {

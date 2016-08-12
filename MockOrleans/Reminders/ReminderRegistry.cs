@@ -28,11 +28,15 @@ namespace MockOrleans.Reminders
             => _dRegistries.GetOrAdd(key, k => new GrainReminderRegistry(_fx, k));
 
 
-        public void CancelAll()
-            => _dRegistries.Values.ToArray().ForEach(r => r.CancelAll());
+        public Task CancelAll()
+            => _dRegistries.Values.ToArray()
+                    .Select(r => r.CancelAll())
+                    .WhenAll();
         
-        public void FireAndCancelAll()
-            => _dRegistries.Values.ToArray().ForEach(r => r.FireAndCancelAll());
+        public Task FireAndCancelAll()
+            => _dRegistries.Values.ToArray()
+                    .Select(r => r.FireAndCancelAll())
+                    .WhenAll();
         
 
         double _speed = 1;
@@ -99,7 +103,7 @@ namespace MockOrleans.Reminders
             Reminder rem;
 
             if(_reminders.TryRemove(name, out rem)) {
-                rem.Clear();
+                rem.ClearAndWait();
             }
 
             return Task.CompletedTask;
@@ -110,16 +114,22 @@ namespace MockOrleans.Reminders
             => UnregisterReminder(reminder.ReminderName);
         
         
-        public void CancelAll() {
+        public Task CancelAll() {
             var reminders = Interlocked.Exchange(ref _reminders, new ConcurrentDictionary<string, Reminder>());
-            reminders.Values.ForEach(r => r.Clear());
+
+            return reminders.Values
+                    .Select(r => r.ClearAndWait())
+                    .WhenAll();
         }
         
 
-        public void FireAndCancelAll() 
+        public Task FireAndCancelAll() 
         {
             var reminders = Interlocked.Exchange(ref _reminders, new ConcurrentDictionary<string, Reminder>());
-            reminders.Values.ForEach(r => r.FireAndClear());
+            
+            return reminders.Values
+                    .Select(r => r.FireClearAndWait())
+                    .WhenAll();
         }
 
 
