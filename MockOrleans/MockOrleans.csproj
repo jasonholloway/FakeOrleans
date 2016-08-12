@@ -77,7 +77,8 @@
     <Compile Include="Components\ReminderRegistry.cs" />
     <Compile Include="Components\TypeMap.cs" />
     <Compile Include="Components\TimerRegistry.cs" />
-    <Compile Include="Components\StreamRegistry.cs" />
+    <Compile Include="Streams\StreamHub.cs" />
+    <Compile Include="Streams\StreamRegistry.cs" />
     <Compile Include="Components\StateStore.cs" />
     <Compile Include="Bits\DynaType.cs" />
     <Compile Include="FixtureExtensions.cs" />
@@ -94,7 +95,7 @@
     <Compile Include="MockFixture.cs" />
     <Compile Include="Components\GrainRegistry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="StreamKey.cs" />
+    <Compile Include="Streams\StreamKey.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

@@ -1,18 +1,13 @@
-﻿using System;
+﻿using Orleans.Streams;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MockOrleans
+namespace MockOrleans.Streams
 {
-    public interface IStreamKey {
-        string ProviderName { get; }
-        string Namespace { get; }
-        Guid StreamId { get; }
-    }
-        
-    public struct StreamKey<TItem> : IStreamKey
+    public struct StreamKey : IStreamIdentity
     {
         public readonly string ProviderName;
         public readonly string Namespace;
@@ -23,19 +18,15 @@ namespace MockOrleans
             Namespace = @namespace;
             Id = id;
         }
+
+        #region IStreamIdentity
         
-        #region IStreamKey
-
-        string IStreamKey.ProviderName {
-            get { return ProviderName; }
-        }
-
-        string IStreamKey.Namespace {
-            get { return Namespace; }
-        }
-
-        Guid IStreamKey.StreamId {
+        Guid IStreamIdentity.Guid {
             get { return Id; }
+        }
+
+        string IStreamIdentity.Namespace {
+            get { return Namespace; }
         }
 
         #endregion

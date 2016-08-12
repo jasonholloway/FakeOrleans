@@ -94,7 +94,7 @@ namespace MockOrleans.Tests
 
 
         [Test]
-        public async Task SubscribersHandleViaGrainRequest()  //and interleave also!(?) - need to look this up
+        public async Task SubscribersRunViaGrainRequest()  //and interleave also!(?) - need to look this up
         {
             var fx = new MockFixture();
             fx.Types.Map<IPublisher, Publisher>();
@@ -124,6 +124,12 @@ namespace MockOrleans.Tests
             throw new NotImplementedException();
         }
 
+
+
+        [Test]
+        public async Task StreamHandlesAreSerializable() {
+            throw new NotImplementedException();
+        }
 
 
 

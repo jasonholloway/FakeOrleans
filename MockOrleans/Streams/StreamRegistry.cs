@@ -6,42 +6,37 @@ using System.Text;
 using System.Threading.Tasks;
 using Orleans.Providers;
 using System.Collections.Concurrent;
+using MockOrleans.Grains;
 
-namespace MockOrleans
+namespace MockOrleans.Streams
 {
 
-    public class StreamRegistry : IStreamProviderManager
-    {
-        ConcurrentDictionary<string, IStreamProvider> _dStreamProvs = new ConcurrentDictionary<string, IStreamProvider>();
+    public class StreamRegistry
+    {        
+        public readonly MockFixture Fixture;
+
+        ConcurrentDictionary<StreamKey, IStreamHub> _dStreamHubs = new ConcurrentDictionary<StreamKey, IStreamHub>();
+
+
+        public StreamRegistry(MockFixture fixture) {
+            Fixture = fixture;
+        }
+
+
+        public IStreamHub GetStream<T>(StreamKey key)
+            => _dStreamHubs.GetOrAdd(key, CreateStream<T>);
+
         
-        public IProvider GetProvider(string name) {
-            return (IProvider)_dStreamProvs.GetOrAdd(name, n => new MockStreamProvider(n));
+        IStreamHub CreateStream<T>(StreamKey key) {
+            return new StreamHub<T>(Fixture.Grains);
         }
-
-        public IEnumerable<IStreamProvider> GetStreamProviders() {
-            throw new NotImplementedException();
-        }
+        
     }
 
+    
 
 
-    public static class StreamRegistryExtensions
-    {
-
-        public static MockStream<T> GetStream<T>(this StreamRegistry mgr, StreamKey<T> streamKey) 
-        {
-            var prov = (IStreamProvider)mgr.GetProvider(streamKey.ProviderName);
-            var str = prov.GetStream<T>(streamKey.Id, streamKey.Namespace);
-            return (MockStream<T>)str;
-        }
-
-    }
-
-
-
-
-
-
+    //the stream provider keeps clients within it - 
     public class MockStreamProvider : IStreamProvider, IProvider
     {
         ConcurrentDictionary<string, object> _dStreams = new ConcurrentDictionary<string, object>();
@@ -104,6 +99,30 @@ namespace MockOrleans
 
                 
 
+        /*
+         * Stream is just a local agent, a proxy for the extension that lives in the same silo as the grain
+         * and is ruled by its scheduler 
+         * 
+         * Each activation will have space for such stream clients, which you will be able to pile up.
+         * 
+         * The stream client receives stuff on caller's scheduler, queues it in local buffer. 
+         * 
+         * Local buffer just means appending to the request list - ie waiting on the shared semaphore.
+         * 
+         * For each StreamClient there is a central Stream that does the pubsub registration.
+         * 
+         * Streams are held, ready for snooping, in the central StreamRegistry.
+         * 
+         * --------------------------------------------
+         * 
+         * StreamClient is set up and is addressable by outside agent 
+         * but if a grain is deactivated, then what happens to it? 
+         * The client remains - and will linger in memory, as the observer attached to the client,
+         * but nothing will happen, as the scheduler will be dead.
+         */
+
+
+
         public Task OnNextAsync(T item, StreamSequenceToken token = null) 
         {
             //no buffer, but sending of requests to all subscribers
@@ -119,6 +138,7 @@ namespace MockOrleans
             throw new NotImplementedException();
         }
 
+
         public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer) 
         {
             _observers.Add(observer);
@@ -128,23 +148,7 @@ namespace MockOrleans
                             ); //good enough for now
         }
 
-
-
-        public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc = null, object filterData = null) {
-            throw new NotImplementedException();
-        }
-
-
-        public int CompareTo(IAsyncStream<T> other) {
-            throw new NotImplementedException();
-        }
-
-        public bool Equals(IAsyncStream<T> other) {
-            throw new NotImplementedException();
-        }
-
-
-
+                
 
         class SubscriptionHandle : StreamSubscriptionHandle<T>
         {
@@ -176,6 +180,15 @@ namespace MockOrleans
 
 
 
+        public int CompareTo(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+        public bool Equals(IAsyncStream<T> other) {
+            throw new NotImplementedException();
+        }
+
+
 
 
         public Task<IList<StreamSubscriptionHandle<T>>> GetAllSubscriptionHandles() {
@@ -201,23 +214,11 @@ namespace MockOrleans
         int IComparable<IAsyncStream<T>>.CompareTo(IAsyncStream<T> other) {
             throw new NotImplementedException();
         }
-
-        Task<StreamSubscriptionHandle<T>> IAsyncObservable<T>.SubscribeAsync(IAsyncObserver<T> observer) {
-            throw new NotImplementedException();
-        }
-
+                
         Task<StreamSubscriptionHandle<T>> IAsyncObservable<T>.SubscribeAsync(IAsyncObserver<T> observer, StreamSequenceToken token, StreamFilterPredicate filterFunc, object filterData) {
             throw new NotImplementedException();
         }
-
-        Task IAsyncBatchObserver<T>.OnNextBatchAsync(IEnumerable<T> batch, StreamSequenceToken token) {
-            throw new NotImplementedException();
-        }
-
-        Task IAsyncObserver<T>.OnNextAsync(T item, StreamSequenceToken token) {
-            throw new NotImplementedException();
-        }
-
+        
         Task IAsyncObserver<T>.OnCompletedAsync() {
             throw new NotImplementedException();
         }
@@ -236,9 +237,7 @@ namespace MockOrleans
         string IAsyncStream<T>.ProviderName {
             get { return Provider.Name; }
         }
-
-
-
+                
         Guid IStreamIdentity.Guid {
             get { return StreamId; }
         }
@@ -246,9 +245,7 @@ namespace MockOrleans
         string IStreamIdentity.Namespace {
             get { return Namespace; }
         }
-
-
-
+        
     }
 
 }
