@@ -34,6 +34,25 @@ namespace MockOrleans.Tests
         }
 
 
+        [Test]
+        public async Task ReminderDelayNotItselfARequest() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<ISelfReminder, SelfReminder>();
+
+            var resultBag = fx.Services.Inject(new ConcurrentBag<bool>());
+
+            var grain = fx.GrainFactory.GetGrain<ISelfReminder>(Guid.Empty);
+
+            await grain.ScheduleReminder();
+
+            await fx.Requests.WhenIdle();
+
+            Assert.That(resultBag, Has.Count.EqualTo(0));
+        }
+
+
+
 
 
 

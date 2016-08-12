@@ -10,7 +10,7 @@ using Orleans;
 using System.Reflection;
 using System.Threading;
 
-namespace MockOrleans
+namespace MockOrleans.Reminders
 {    
         
     public class ReminderRegistry
@@ -85,8 +85,10 @@ namespace MockOrleans
             var reminder = new Reminder(_fx, _grainKey, reminderName);
 
             _reminders[reminderName] = reminder;
+
+            reminder.Schedule(dueTime, period);
             
-            _fx.Requests.Perform(() => reminder.Schedule(dueTime, period)); //but scheduling should be tracked - the first execution, less so...
+            //_fx.Requests.Perform(() => reminder.Schedule(dueTime, period)); //but scheduling should be tracked - the first execution, less so...
             
             return reminder;
         }
@@ -125,84 +127,6 @@ namespace MockOrleans
 
     
 
-
-    public enum ReminderState
-    {
-        Normal,
-        Cancelled,
-        OneShot
-    }
-    
-
-
-    public class Reminder : IGrainReminder
-    {
-        string _name;
-        GrainKey _key;
-        MockFixture _fx;
-        
-        CancellationTokenSource _cancelTokenSource = new CancellationTokenSource();
-        CancellationToken _cancelToken;
-
-        volatile ReminderState _status;
-
-
-        public Reminder(MockFixture fx, GrainKey key, string name) {
-            _fx = fx;
-            _key = key;
-            _name = name;
-
-            _status = ReminderState.Normal;
-            _cancelToken = _cancelTokenSource.Token;
-        }
-
-
-        static MethodInfo _mReceiveRemindable = typeof(IRemindable).GetMethod("ReceiveReminder");
-        
-
-        public async Task Schedule(TimeSpan due, TimeSpan period)
-        {
-            var adjustedDue = TimeSpan.FromMilliseconds(due.TotalMilliseconds / _fx.Reminders.Speed);
-
-            if(adjustedDue > TimeSpan.Zero) {
-                try {
-                    await Task.Delay(adjustedDue, _cancelTokenSource.Token);
-                }
-                catch(TaskCanceledException) { }
-            }
-
-            var status = _status;
-
-            if(status == ReminderState.Normal) {
-                _fx.Requests.Perform(() => Schedule(period, period));
-            }
-
-            if(status != ReminderState.Cancelled) {
-                _fx.Requests.Perform(async () => {
-                    var endpoint = _fx.Grains.GetGrainEndpoint(_key);
-                    await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
-                });
-            }
-        }
-        
-
-        public void FireAndClear() {
-            _status = ReminderState.OneShot;
-            _cancelTokenSource.Cancel();
-        }
-        
-
-        public void Clear() {
-            _status = ReminderState.Cancelled;
-            _cancelTokenSource.Cancel();
-        }
-        
-
-        string IGrainReminder.ReminderName {
-            get { return _name; }
-        }
-
-    }
 
 
 

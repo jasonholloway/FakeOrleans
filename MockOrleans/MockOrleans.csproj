@@ -74,7 +74,8 @@
     <Compile Include="Bits\Extensions\TypeExtensions.cs" />
     <Compile Include="Bits\Require.cs" />
     <Compile Include="Components\ProviderRegistry.cs" />
-    <Compile Include="Components\ReminderRegistry.cs" />
+    <Compile Include="Reminders\Reminder.cs" />
+    <Compile Include="Reminders\ReminderRegistry.cs" />
     <Compile Include="Components\TypeMap.cs" />
     <Compile Include="Components\TimerRegistry.cs" />
     <Compile Include="Streams\StreamHub.cs" />

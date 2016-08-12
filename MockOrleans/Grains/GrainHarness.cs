@@ -82,7 +82,7 @@ namespace MockOrleans.Grains
 
         public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn) 
         {
-            //single-threaded below - though sometimes interleaved
+            //single-threaded below - though sometimes interleaved - BETTER TO USE REQUESTS.PERFORM() ???
             var t = new Task<Task<TResult>>(async () => {
 
                 Requests.Increment();
