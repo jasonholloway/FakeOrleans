@@ -93,7 +93,7 @@ namespace MockOrleans.Grains
             var t = new Task<Task<TResult>>(async () => {
 
                 Requests.Increment();
-                if(Spec.SerializesRequests) await _smActive.WaitAsync();
+                if(!Spec.IsReentrant) await _smActive.WaitAsync();
 
                 try {               
                     if(_tActivating == null) {
@@ -108,7 +108,7 @@ namespace MockOrleans.Grains
                     throw; //strangely, swallowing exception unless rethrown (really???)
                 }
                 finally {
-                    if(Spec.SerializesRequests) _smActive.Release();
+                    if(!Spec.IsReentrant) _smActive.Release();
                     Requests.Decrement();
                 }
             });

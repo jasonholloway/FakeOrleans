@@ -56,7 +56,7 @@ namespace MockOrleans.Grains
         public Task OnNextAsync(T item, StreamSequenceToken token = null)
             => _stream.OnNext(_activation.Serializer.Serialize(item), token);
 
-        public Task OnNextBatchAsync(IEnumerable<T> batch, StreamSequenceToken token = null) {
+        public Task OnNextBatchAsync(IEnumerable<T> batch, StreamSequenceToken token = null) { 
             throw new NotImplementedException();
         }
 

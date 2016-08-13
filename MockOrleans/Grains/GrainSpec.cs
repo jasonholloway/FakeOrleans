@@ -1,4 +1,5 @@
-﻿using Orleans.Concurrency;
+﻿using Orleans;
+using Orleans.Concurrency;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,8 +12,11 @@ namespace MockOrleans.Grains
 
     public class GrainSpec
     {
-        public bool SerializesRequests { get; private set; }
-
+        public bool IsReentrant { get; private set; }
+        public bool IsStatelessWorker { get; private set; }
+        public int StatelessWorkerMaxNumber { get; private set; }
+        public string[] StreamSubNamespaces { get; private set; }
+        
         private GrainSpec() { }
 
 
@@ -22,12 +26,24 @@ namespace MockOrleans.Grains
             => _dSpecs.GetOrAdd(grainType, GenerateSpec);
 
 
-        static GrainSpec GenerateSpec(Type grainType) {
-            var atts = grainType.GetCustomAttributes(true);
+        static GrainSpec GenerateSpec(Type grainType) 
+        {
+            var attrs = grainType.GetCustomAttributes(true);
+            
+            var spec = new GrainSpec();
+            spec.IsReentrant = attrs.OfType<ReentrantAttribute>().Any();
+            
+            var statelessWorkerAttr = attrs.OfType<StatelessWorkerAttribute>().FirstOrDefault();
 
-            return new GrainSpec() {
-                SerializesRequests = !atts.OfType<ReentrantAttribute>().Any()
-            };
+            if(statelessWorkerAttr != null) {
+                spec.IsStatelessWorker = true;
+                spec.StatelessWorkerMaxNumber = statelessWorkerAttr.MaxLocalWorkers;
+            }
+                        
+            var streamSubAttrs = attrs.OfType<ImplicitStreamSubscriptionAttribute>();
+            spec.StreamSubNamespaces = streamSubAttrs.Select(a => a.Namespace).ToArray();
+            
+            return spec;
         }
 
     }
