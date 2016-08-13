@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace MockOrleans.Streams
 {
+    [Serializable]
     public struct StreamKey : IStreamIdentity
     {
         public readonly string ProviderName;

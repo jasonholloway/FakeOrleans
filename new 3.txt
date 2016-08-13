@@ -1,0 +1,91 @@
+
+Every one-to-many relationship represents an index.
+
+If there is no ordering, then such a basic index is OK.
+
+But as soon as there is ordering, or some kind of distinction - ie a filter - then this represents a two-way back and forth between container and contained,
+and as such transcends the simple consistency boundaries of the individual, consistent scenes.
+
+So - indexing is to be done outside of the scenes.
+
+And all one-to-many relationships are the bases of indexing.
+
+How are indexes built? By subscribing to events in the contained. The changing state of the contained then decides their appearance in the index, and their ordering.
+
+An index would then be a curated stream of index-affecting changes.
+
+A derived index would then be another stream of events, perhaps in a neighbouring table. This could be modelled as another aggregable.
+
+The aggregable would be live, but without a sentry. It would just be a sink for events. The LiveHarness would cut out the sentry if none was specified.
+
+--------------------------------------------------------------------
+
+The aggregable of course would be locally cacheable and viewable as normal in the cache. Invalidations would flow to it as with anything else.
+
+Though back-up scanning wouldn't reach it, not being a member of the tree. Maybe some pub-sub thing could be devised? If you're on the big list of scenes, then you will be refreshed?
+
+But - this amounts to indexing every grain, which I don't much like the idea of.
+
+Bespoke solutions instead.
+
+--------------------------------------------------------------------
+
+ Every index would then have a central aggregable, but this would be coupled with a tracker, and a set of updates.
+ 
+ The tracker type would determine the specific aggregable to send to, and the conditions of its updates.
+ 
+ The aggregable would aggregate these updates in its intended manner.
+ 
+ But how would each tracker know its target? The index would belong to the parent. Each tracker would read the parent ref from its tracked scene, and know from this where to send its index updates.
+ 
+ So, oddly, the index really belongs to the children, which decide to organise themselves around a common point.
+ 
+ --------------------------------------------------------------------
+ 
+ Queries will rely on these indexes existing. They will have special knowledge of their existence - reliance on their up-to-date existence.
+ 
+ Indexes could lag, then, being centrally derived and stored.
+ 
+ The only way for this not to be the case would be if they were derived locally, and not stored at all.
+ 
+ The problem with this is that scenes are only represented locally on request. They don't automatically appear - their information has to be sought.
+ 
+ Local indexing would require special trackers to be run on incoming images, that would be eagerly supplied on detected invalidation (not unreasonably).
+ 
+ But they would also require some local kind of aggregagable cache...
+ 
+ ---------------------------------------------------------------------
+ 
+ The most simple option then:
+ 
+ Indexes are simple aggregables, determined and fed by the contained children, who project themselves upwards in some discoverable form.
+ 
+ Tenants, without parents, could then be listed automatically in a global index, which would be nice.
+ 
+ ----------------------------------------------------------------------
+ 
+ FURTHER IDEA: all entities, if they want to be tracked, are to register themselves in an expanded tree. 
+ 
+ ----------------------------------------------------------------------
+ 
+ Could indexes themselves be tracked? Well, yes - alerts could be set, maybe. 
+ 
+ 
+ PROBLEM: Time-based filtering
+ 
+ Ordering can be done by index, yes. But the reader must decide the arbitrary cut-off date. 
+ 
+ Maybe an occasional archive event could be sent.
+ 
+ The archive event would change the stored cut-off date, and also some sub-collections of archived indices, which would themselves be distinguished by date range.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+

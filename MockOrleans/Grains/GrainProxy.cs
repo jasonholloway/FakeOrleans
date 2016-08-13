@@ -14,7 +14,7 @@ namespace MockOrleans.Grains
     using FnProxifier = Func<MockFixture, ResolvedGrainKey, GrainProxy>;
     
 
-    public abstract class GrainProxy {  
+    public abstract class GrainProxy : Grain {    //inheriting Grain is a hack in order to use Orleans extensions methods nicely
         
         public MockFixture Fixture;
         public ResolvedGrainKey Key;
@@ -36,6 +36,8 @@ namespace MockOrleans.Grains
             for(int i = 0; i< args.Length; i++) {
                 var arg = args[i];
 
+                if(arg is GrainProxy) continue; //remember - GrainProxy is now a Grain too!
+                             
                 if(arg is Grain) { //proxify before passing to grain method
                     var argKey = ((IGrain)arg).GetGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
 
@@ -45,7 +47,7 @@ namespace MockOrleans.Grains
                                         
                     args[i] = Proxify(Fixture, grainKey);
                 }
-                else if(!(arg is GrainProxy)) {                  
+                else {                  
                     args[i] = Fixture.Serializer.Clone(arg);
                 }
             }

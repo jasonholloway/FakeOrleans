@@ -12,9 +12,31 @@ using System.Threading;
 using System.Collections.Concurrent;
 using Orleans.Concurrency;
 using System.Runtime.InteropServices;
+using Orleans.Providers;
+using MockOrleans.Streams;
 
 namespace MockOrleans.Grains
-{        
+{       
+    
+    
+    public class StreamObserverRegistry
+    {
+        ConcurrentDictionary<StreamKey, object> _dObservers = new ConcurrentDictionary<StreamKey, object>();
+        
+        public void Register<T>(StreamKey streamKey, IAsyncObserver<T> observer) {
+            _dObservers[streamKey] = observer;
+        }
+        
+        public IAsyncObserver<T> Find<T>(StreamKey streamKey) {
+            object observer = null;
+            _dObservers.TryGetValue(streamKey, out observer);
+            return observer as IAsyncObserver<T>;
+        }
+    }
+    
+    
+    
+     
 
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
@@ -25,6 +47,8 @@ namespace MockOrleans.Grains
         public readonly RequestRegistry Requests;
         public readonly ExceptionSink Exceptions;
         public readonly MockTimerRegistry Timers;
+        public readonly StreamObserverRegistry StreamObservers;
+
         
         IGrain Grain { get; set; } = null;
         
@@ -38,6 +62,7 @@ namespace MockOrleans.Grains
             Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
             Requests = new RequestRegistry(Scheduler, fx.Requests);
             Timers = new MockTimerRegistry(this);
+            StreamObservers = new StreamObserverRegistry();
         }
 
 
@@ -191,16 +216,16 @@ namespace MockOrleans.Grains
         IReminderRegistry IGrainRuntime.ReminderRegistry {
             get { return Fixture.Reminders.GetRegistry(Placement.Key); }
         }
-
+                
         IStreamProviderManager IGrainRuntime.StreamProviderManager {
-            get { throw new NotImplementedException(); }
+            get { return new StreamProviderManagerAdaptor(this, Fixture.Streams); }
         }
 
         IServiceProvider IGrainRuntime.ServiceProvider {
             get { return Fixture.Services; }
         }
         
-        void IGrainRuntime.DeactivateOnIdle(Grain grain) { //this reveals grainruntime to be a general service
+        void IGrainRuntime.DeactivateOnIdle(Grain grain) {
             Requests.WhenIdle().ContinueWith(_ => Deactivate(), Scheduler);
         }
 

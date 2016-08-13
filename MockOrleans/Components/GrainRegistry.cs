@@ -7,6 +7,7 @@ using Orleans;
 using System.Collections.Concurrent;
 using System.Threading;
 using MockOrleans.Grains;
+using System.Collections.ObjectModel;
 
 namespace MockOrleans
 {
@@ -52,13 +53,19 @@ namespace MockOrleans
         //public ConcurrentDictionary<GrainKey, GrainHarness> Harnesses { get; private set; }
 
 
-        public ConcurrentDictionary<GrainPlacement, GrainHarness> Activations { get; private set; }
+        //public IReadOnlyDictionary<GrainPlacement, GrainHarness> Activations {
+        //    get { return new ReadOnlyDictionary<GrainPlacement, GrainHarness>(_dActivations); }
+        //}
+
+
+
+        ConcurrentDictionary<GrainPlacement, GrainHarness> _dActivations;
 
 
         public GrainRegistry(MockFixture fx) {
             Fixture = fx;
             //Harnesses = new ConcurrentDictionary<GrainKey, GrainHarness>(GrainKeyComparer.Instance);
-            Activations = new ConcurrentDictionary<GrainPlacement, GrainHarness>();
+            _dActivations = new ConcurrentDictionary<GrainPlacement, GrainHarness>();
         }
                 
 
@@ -93,7 +100,7 @@ namespace MockOrleans
 
 
         public GrainHarness GetActivation(GrainPlacement placement)
-            => Activations.GetOrAdd(placement, p => new GrainHarness(Fixture, p));
+            => _dActivations.GetOrAdd(placement, p => new GrainHarness(Fixture, p));
 
 
 
@@ -107,12 +114,21 @@ namespace MockOrleans
         {
             var placement = GetPlacement(key);
             
-            //deactivate current activation if exists
-            //...
-
-            Activations.AddOrUpdate(placement,
+            GrainHarness oldActivation = null;
+            
+            _dActivations.AddOrUpdate(placement,
                         p => new GrainHarness(Fixture, p, grain),
-                        (p, _) => new GrainHarness(Fixture, p, grain));
+                        (p, old) => {
+                            oldActivation = old;
+                            return new GrainHarness(Fixture, p, grain);
+                        });
+
+            if(oldActivation != null) {
+                Fixture.Requests.Perform(async () => {
+                    await oldActivation.Deactivate();
+                    oldActivation.Dispose();
+                });
+            }
 
             var resolvedKey = new ResolvedGrainKey(typeof(TGrain), key.ConcreteType, key.Key);
 
@@ -122,21 +138,25 @@ namespace MockOrleans
 
 
 
-        public async Task Deactivate(GrainKey key) {
-            throw new NotImplementedException();
-        }
+        public async Task Deactivate(GrainPlacement placement) 
+        {
+            GrainHarness activation;
 
+            if(_dActivations.TryRemove(placement, out activation)) {
+                await activation.Deactivate();
+                activation.Dispose();
+            }
+        }
+                
 
         public async Task DeactivateAll() 
         {
-            var activations = Activations.Values.ToArray();
-                        
-            Activations.Clear();
+            var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
 
-            foreach(var a in activations) {
-                await a.Deactivate();
-                a.Dispose();
-            }            
+            await captured.Values.Select(async a => {
+                                            await a.Deactivate();
+                                            a.Dispose();
+                                        }).WhenAll();
         }
 
         

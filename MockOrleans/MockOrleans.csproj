@@ -68,6 +68,7 @@
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\RequestRegistry.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />
+    <Compile Include="Grains\GrainContext.cs" />
     <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />
     <Compile Include="Bits\Extensions\StringExtensions.cs" />
@@ -78,6 +79,7 @@
     <Compile Include="Reminders\ReminderRegistry.cs" />
     <Compile Include="Components\TypeMap.cs" />
     <Compile Include="Components\TimerRegistry.cs" />
+    <Compile Include="Streams\Adaptors.cs" />
     <Compile Include="Streams\StreamHub.cs" />
     <Compile Include="Streams\StreamRegistry.cs" />
     <Compile Include="Components\StateStore.cs" />

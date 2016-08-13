@@ -1,10 +1,14 @@
-﻿using NUnit.Framework;
+﻿using MockOrleans.Grains;
+using MockOrleans.Streams;
+using NSubstitute;
+using NUnit.Framework;
 using Orleans;
 using Orleans.Streams;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -32,7 +36,6 @@ namespace MockOrleans.Tests
             }
 
             await fx.Requests.WhenIdle();
-            await fx.Scheduler.WhenIdle();
 
             Assert.That(received, Is.EquivalentTo(Enumerable.Range(0, 10)));
         }
@@ -59,7 +62,6 @@ namespace MockOrleans.Tests
             }
 
             await fx.Requests.WhenIdle();
-            await fx.Scheduler.WhenIdle();
 
             Assert.That(received, Is.EquivalentTo(Enumerable.Range(0, 10).SelectMany(_ => Enumerable.Range(0, 10))));
         }
@@ -94,7 +96,7 @@ namespace MockOrleans.Tests
 
 
         [Test]
-        public async Task SubscribersRunViaGrainRequest()  //and interleave also!(?) - need to look this up
+        public async Task SubscribersRunViaGrainRequest()
         {
             var fx = new MockFixture();
             fx.Types.Map<IPublisher, Publisher>();
@@ -109,11 +111,37 @@ namespace MockOrleans.Tests
 
             await prod.Publish(123);
 
-            await fx.Requests.WhenIdle();
+            await fx.Requests.WhenIdle(); //if requests not used, this returns too soon..
 
             Assert.That(received, Is.EqualTo(new[] { 123 }));
+        }
 
-            //this falsely passes at mo as fire-and-forget isn't working
+
+
+        [Test]
+        public async Task StreamObservationResumableViaPersistedHandle() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IPublisher, Publisher>();
+            fx.Types.Map<ISubscriber, Subscriber>();
+
+            var received = fx.Services.Inject(new ConcurrentBag<int>());
+
+            var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+            await sub.SubscribeAndWrite();
+            
+            await fx.Grains.DeactivateAll(); //should be specific to subscriber grain - not general!
+
+            await sub.ResumeFromPersistedHandle();
+            
+            var pub = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            await pub.Publish(1);
+            await pub.Publish(2);
+            await pub.Publish(3);
+
+            await fx.Requests.WhenIdle();
+
+            Assert.That(received, Is.EquivalentTo(new[] { 1, 2, 3 }));
         }
 
 
@@ -124,13 +152,30 @@ namespace MockOrleans.Tests
             throw new NotImplementedException();
         }
 
-
+        
 
         [Test]
-        public async Task StreamHandlesAreSerializable() {
-            throw new NotImplementedException();
-        }
+        public void SubscriptionHandleSerializes() 
+        {
+            var fx = new MockFixture();            
+            var serializer = new MockSerializer(fx);
 
+            var streamKey = new StreamKey("prov", "ns", Guid.NewGuid());
+            var grainKey = new GrainKey(typeof(Subscriber), Guid.NewGuid());
+
+            var handle = new StreamHub<int>.SubscriptionHandle(streamKey, grainKey, fx.Streams);
+            
+            var cloned = serializer.Clone(handle);
+
+            Assert.That(cloned.GrainKey, Is.EqualTo(grainKey));
+            Assert.That(cloned.StreamKey, Is.EqualTo(streamKey));
+            Assert.That(cloned.HandleId, Is.EqualTo(handle.HandleId));
+
+            var fStreamReg = typeof(StreamHub<int>.SubscriptionHandle).GetField("_streamReg", BindingFlags.Instance | BindingFlags.NonPublic);
+            var clonedStreamReg = fStreamReg.GetValue(cloned);
+
+            Assert.That(clonedStreamReg, Is.EqualTo(fx.Streams));
+        }
 
 
 
@@ -165,9 +210,11 @@ namespace MockOrleans.Tests
         {
             Task Subscribe();
             Task SubscribeAndSlowlyConsume();
+            Task SubscribeAndWrite();
+            Task ResumeFromPersistedHandle();
         }
 
-        public class Subscriber : Grain, ISubscriber, IAsyncObserver<int>
+        public class Subscriber : Grain<SubscriberState>, ISubscriber, IAsyncObserver<int>
         {
             IAsyncStream<int> _stream;
             ConcurrentBag<int> _numberSink;
@@ -181,13 +228,24 @@ namespace MockOrleans.Tests
             public async Task Subscribe() {
                 var streamProv = GetStreamProvider("Test");
                 _stream = streamProv.GetStream<int>(StreamId, "Numbers");
-                await _stream.SubscribeAsync(this);
+                State.SubscriptionHandle = await _stream.SubscribeAsync(this);
             }
-            
 
             public async Task SubscribeAndSlowlyConsume() {
                 _goSlow = true;
                 await Subscribe();
+            }
+
+
+            public async Task SubscribeAndWrite() {
+                await Subscribe();
+                await WriteStateAsync();
+            }
+
+
+            public async Task ResumeFromPersistedHandle() {
+                await ReadStateAsync();
+                await State.SubscriptionHandle.ResumeAsync(this);
             }
 
 
@@ -208,6 +266,12 @@ namespace MockOrleans.Tests
             }
         }
 
+
+        [Serializable]
+        public class SubscriberState
+        {
+            public StreamSubscriptionHandle<int> SubscriptionHandle { get; set; }
+        }
 
 
 

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MockOrleans.Grains;
+using MockOrleans.Streams;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,8 +9,28 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MockOrleans.Grains
+namespace MockOrleans
 {
+
+    
+    public interface ISerializationContext
+    { }
+
+
+    public class FixtureContext : ISerializationContext
+    {
+        public MockFixture Fixture { get; set; }
+    }
+
+
+    public class GrainContext : FixtureContext
+    {
+        public GrainHarness Activation { get; set; }
+    }
+
+
+
+
 
     public static class MockSerializerExtensions
     {
@@ -20,11 +42,11 @@ namespace MockOrleans.Grains
 
     public class MockSerializer
     {
-        MockFixture _fx;
+        object _ctx;        
         ISurrogateSelector _surrogateSelector;
 
-        public MockSerializer(MockFixture fx) {
-            _fx = fx;
+        public MockSerializer(object ctx) {
+            _ctx = ctx;
             _surrogateSelector = new GrainAwareSurrogateSelector();            
         }
 
@@ -33,7 +55,7 @@ namespace MockOrleans.Grains
         {
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
-                                    new StreamingContext(StreamingContextStates.All, _fx));
+                                    new StreamingContext(StreamingContextStates.All, _ctx));
 
             using(var str = new MemoryStream()) {
                 formatter.Serialize(str, inp);
@@ -47,7 +69,7 @@ namespace MockOrleans.Grains
         {
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
-                                    new StreamingContext(StreamingContextStates.All, _fx));
+                                    new StreamingContext(StreamingContextStates.All, _ctx));
 
             using(var str = new MemoryStream(bytes)) {
                 return formatter.Deserialize(str);
@@ -79,9 +101,9 @@ namespace MockOrleans.Grains
                 if(type.IsAssignableTo<GrainProxy>() || type.Equals(typeof(GrainProxyDummy))) {
                     return new GrainProxySurrogate();
                 }
-
-                //if(type.IsAssignableTo<GrainActivation>()) {
-                //    return new GrainSurrogate();
+                
+                //if(type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(StreamHub<>.SubscriptionHandle))) {
+                //    return new StreamSubscriptionHandleSurrogate();
                 //}
 
                 return null;
@@ -106,29 +128,39 @@ namespace MockOrleans.Grains
 
             public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
             {
-                var fx = (MockFixture)context.Context;
-
+                var ctx = context.Context as FixtureContext;
+                
+                if(ctx == null) {
+                    throw new SerializationException("Can't deserialize GrainProxy without FixtureContext!");
+                }
+                
                 var key = (ResolvedGrainKey)info.GetValue("key", typeof(ResolvedGrainKey));
 
-                return fx.GetGrainProxy(key);
+                return ctx.Fixture.GetGrainProxy(key);
             }
         }
 
 
-        class GrainSurrogate : ISerializationSurrogate
-        {
-            public void GetObjectData(object obj, SerializationInfo info, StreamingContext context) 
-            {
-                throw new NotImplementedException();
-            }
 
-            public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
-            {
-                //proxify
-                //the serialize
-                throw new NotImplementedException();
-            }
-        }
+        //class StreamSubscriptionHandleSurrogate : ISerializationSurrogate
+        //{
+        //    public void GetObjectData(object obj, SerializationInfo info, StreamingContext context) {
+        //        //info.SetType(typeof(GrainProxyDummy));
 
+        //        var proxy = (GrainProxy)obj;
+        //        info.AddValue("key", proxy.Key, typeof(ResolvedGrainKey));
+        //    }
+
+        //    public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) {
+        //        var fx = (MockFixture)context.Context;
+                
+        //        var streamKey = (StreamKey)info.GetValue("streamKey", typeof(StreamKey));
+        //        var grainKey = (GrainKey)info.GetValue("grainKey", typeof(GrainKey));
+                
+        //        return new StreamHub<int>.SubscriptionHandle(streamKey, grainKey, fx.Streams);                
+        //    }
+        //}
+        
+        
     }
 }

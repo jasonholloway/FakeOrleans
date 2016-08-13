@@ -41,10 +41,10 @@ namespace MockOrleans
             Types = new TypeMap();
             GrainFactory = new MockGrainFactory(this);
             Stores = new StorageRegistry(Serializer);
-            Streams = new StreamRegistry(this);
+            Grains = new GrainRegistry(this);
+            Streams = new StreamRegistry(Grains);
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
-            Grains = new GrainRegistry(this);
         }
 
         
