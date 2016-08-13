@@ -327,7 +327,39 @@ namespace MockOrleans.Tests
 
 
               
+        [Test]
+        public async Task GrainProxiesPassableAsArgs() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map<IProxyPasser, ProxyPasser>();
+            
+            var grain1 = fx.GrainFactory.GetGrain<IProxyPasser>(Guid.NewGuid());
+            var grain2 = fx.GrainFactory.GetGrain<IProxyPasser>(Guid.NewGuid());
+            
+            var result = await grain1.Intermediate(grain2);
+            
+            Assert.That(result, Is.EqualTo(13));
+        }
+    
 
+
+
+        public interface IProxyPasser : IGrainWithGuidKey
+        {
+            Task<int> Intermediate(IProxyPasser other);
+            Task<int> Source();
+        }
+
+        public class ProxyPasser : Grain, IProxyPasser
+        {
+            public Task<int> Intermediate(IProxyPasser other) {
+                return other.Source();
+            }
+
+            public Task<int> Source() {
+                return Task.FromResult(13);
+            }
+        }
 
 
 

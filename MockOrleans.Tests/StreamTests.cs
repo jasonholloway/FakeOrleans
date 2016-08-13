@@ -21,15 +21,15 @@ namespace MockOrleans.Tests
         public async Task SubscriberReceivesFromPublisher() 
         {
             var fx = new MockFixture();
-            fx.Types.Map<IPublisher, Publisher>();
-            fx.Types.Map<ISubscriber, Subscriber>();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());
 
-            var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+            var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
             await sub.Subscribe();
 
-            var prod = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            var prod = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
 
             for(int i = 0; i < 10; i++) {
                 await prod.Publish(i);
@@ -45,17 +45,17 @@ namespace MockOrleans.Tests
         public async Task MultipleSubscribersReceiveFromPublisher() 
         {
             var fx = new MockFixture();
-            fx.Types.Map<IPublisher, Publisher>();
-            fx.Types.Map<ISubscriber, Subscriber>();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());
 
             for(int i = 0; i < 10; i++) {
-                var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+                var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
                 await sub.Subscribe();
             }
 
-            var prod = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            var prod = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
 
             for(int i = 0; i < 10; i++) {
                 await prod.Publish(i);
@@ -75,17 +75,17 @@ namespace MockOrleans.Tests
         public async Task PublisherFiresAndForgets() 
         {
             var fx = new MockFixture();
-            fx.Types.Map<IPublisher, Publisher>();
-            fx.Types.Map<ISubscriber, Subscriber>();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());
 
             for(int i = 0; i < 10; i++) {
-                var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+                var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
                 await sub.SubscribeAndSlowlyConsume();
             }
 
-            var prod = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            var prod = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
             
             await prod.Publish(123);
 
@@ -99,15 +99,15 @@ namespace MockOrleans.Tests
         public async Task SubscribersRunViaGrainRequest()
         {
             var fx = new MockFixture();
-            fx.Types.Map<IPublisher, Publisher>();
-            fx.Types.Map<ISubscriber, Subscriber>();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());
             
-            var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+            var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
             await sub.SubscribeAndSlowlyConsume();
 
-            var prod = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            var prod = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
 
             await prod.Publish(123);
 
@@ -122,19 +122,19 @@ namespace MockOrleans.Tests
         public async Task StreamObservationResumableViaPersistedHandle() 
         {
             var fx = new MockFixture();
-            fx.Types.Map<IPublisher, Publisher>();
-            fx.Types.Map<ISubscriber, Subscriber>();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());
 
-            var sub = fx.GrainFactory.GetGrain<ISubscriber>(Guid.NewGuid());
+            var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
             await sub.SubscribeAndWrite();
             
             await fx.Grains.DeactivateAll(); //should be specific to subscriber grain - not general!
 
             await sub.ResumeFromPersistedHandle();
             
-            var pub = fx.GrainFactory.GetGrain<IPublisher>(Guid.NewGuid());
+            var pub = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
             await pub.Publish(1);
             await pub.Publish(2);
             await pub.Publish(3);
@@ -148,8 +148,48 @@ namespace MockOrleans.Tests
 
 
         [Test]
-        public async Task StreamItemsPassThroughSerializer() {
-            throw new NotImplementedException();
+        public async Task StreamItemsPassThroughSerializer() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
+
+            var received = fx.Services.Inject(new ConcurrentBag<object>());
+
+            var sub = fx.GrainFactory.GetGrain<ISubscriber<object>>(Guid.NewGuid());
+            var pub = fx.GrainFactory.GetGrain<IPublisher<object>>(Guid.NewGuid());
+
+            await sub.Subscribe();
+
+            await pub.PublishNewTwice();
+
+            await fx.Requests.WhenIdle();
+
+            Assert.That(received.First(), Is.Not.EqualTo(received.Skip(1).First()));
+        }
+
+
+
+        [Test]
+        public async Task CanUnsubscribeFromStreamViaHandle() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map(typeof(ISubscriber<>), typeof(Subscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
+
+            var received = fx.Services.Inject(new ConcurrentBag<int>());
+
+            var sub = fx.GrainFactory.GetGrain<ISubscriber<int>>(Guid.NewGuid());
+            var pub = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
+            
+            await sub.Subscribe();
+            await sub.Unsubscribe();
+
+            await pub.Publish(7);
+
+            await fx.Requests.WhenIdle();
+
+            Assert.That(received, Is.Empty);
         }
 
         
@@ -157,78 +197,100 @@ namespace MockOrleans.Tests
         [Test]
         public void SubscriptionHandleSerializes() 
         {
-            var fx = new MockFixture();            
-            var serializer = new MockSerializer(fx);
-
+            var fx = new MockFixture();
+            fx.Types.Map<IDummy, Dummy>();
+            
             var streamKey = new StreamKey("prov", "ns", Guid.NewGuid());
-            var grainKey = new GrainKey(typeof(Subscriber), Guid.NewGuid());
-
-            var handle = new StreamHub<int>.SubscriptionHandle(streamKey, grainKey, fx.Streams);
+            var subKey = new Stream.SubKey(streamKey, Guid.NewGuid());
+            var activation = fx.Grains.GetActivation<IDummy>(Guid.NewGuid());
+                        
+            var serializer = new MockSerializer(new GrainContext(fx, activation));
+            
+            var handle = new GrainStreamHandle<int>(subKey, activation, fx.Streams);
             
             var cloned = serializer.Clone(handle);
 
-            Assert.That(cloned.GrainKey, Is.EqualTo(grainKey));
-            Assert.That(cloned.StreamKey, Is.EqualTo(streamKey));
-            Assert.That(cloned.HandleId, Is.EqualTo(handle.HandleId));
 
-            var fStreamReg = typeof(StreamHub<int>.SubscriptionHandle).GetField("_streamReg", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(cloned.SubscriptionKey, Is.EqualTo(subKey));
+
+            var fStreamReg = typeof(GrainStreamHandle<int>).GetField("_streamReg", BindingFlags.Instance | BindingFlags.NonPublic);
             var clonedStreamReg = fStreamReg.GetValue(cloned);
-
             Assert.That(clonedStreamReg, Is.EqualTo(fx.Streams));
         }
 
 
 
+        public interface IDummy : IGrainWithGuidKey
+        { }
+
+        public class Dummy : Grain, IDummy
+        { }
 
 
+
+
+        static string StreamProviderName = "test";
+        static string StreamNamespace = "blah";
         static Guid StreamId = Guid.NewGuid();
 
-        public interface IPublisher : IGrainWithGuidKey
+
+        public interface IPublisher<T> : IGrainWithGuidKey
+            where T : new()
         {
-            Task Publish(int i);
+            Task Publish(T val);
+            Task PublishNewTwice();
         }
 
-        public class Publisher : Grain, IPublisher
+        public class Publisher<T> : Grain, IPublisher<T>
+            where T : new()
         {
-            IAsyncStream<int> _stream;
+            IAsyncStream<T> _stream;
 
             public override Task OnActivateAsync() {
-                var streamProv = GetStreamProvider("Test");
-                _stream = streamProv.GetStream<int>(StreamId, "Numbers");
+                var streamProv = GetStreamProvider(StreamProviderName);
+                _stream = streamProv.GetStream<T>(StreamId, StreamNamespace);
                 return Task.CompletedTask;
             }
 
-            public Task Publish(int i)
-                => _stream.OnNextAsync(i);
+            public Task Publish(T val)
+                => _stream.OnNextAsync(val);
+
+
+            public Task PublishNewTwice() {
+                var o = new T();
+                _stream.OnNextAsync(o);
+                _stream.OnNextAsync(o);
+                return Task.CompletedTask;
+            }
 
         }
 
         
 
 
-        public interface ISubscriber : IGrainWithGuidKey
+        public interface ISubscriber<T> : IGrainWithGuidKey
         {
             Task Subscribe();
             Task SubscribeAndSlowlyConsume();
             Task SubscribeAndWrite();
             Task ResumeFromPersistedHandle();
+            Task Unsubscribe();
         }
 
-        public class Subscriber : Grain<SubscriberState>, ISubscriber, IAsyncObserver<int>
-        {
-            IAsyncStream<int> _stream;
-            ConcurrentBag<int> _numberSink;
+        public class Subscriber<T> : Grain<SubscriberState<T>>, ISubscriber<T>, IAsyncObserver<T>
+        {            
+            ConcurrentBag<T> _sink;
             bool _goSlow = false;
 
-            public Subscriber(ConcurrentBag<int> numberSink) {
-                _numberSink = numberSink;
+            public Subscriber(ConcurrentBag<T> sink) {
+                _sink = sink;
             }
             
 
             public async Task Subscribe() {
-                var streamProv = GetStreamProvider("Test");
-                _stream = streamProv.GetStream<int>(StreamId, "Numbers");
-                State.SubscriptionHandle = await _stream.SubscribeAsync(this);
+                var streamProv = GetStreamProvider(StreamProviderName);
+                var stream = streamProv.GetStream<T>(StreamId, StreamNamespace);
+                State.SubscriptionHandle = await stream.SubscribeAsync(this);
             }
 
             public async Task SubscribeAndSlowlyConsume() {
@@ -248,13 +310,17 @@ namespace MockOrleans.Tests
                 await State.SubscriptionHandle.ResumeAsync(this);
             }
 
+            public async Task Unsubscribe() {
+                await State.SubscriptionHandle.UnsubscribeAsync();
+            }
+            
 
-            public async Task OnNextAsync(int item, StreamSequenceToken token = null) {
+            public async Task OnNextAsync(T item, StreamSequenceToken token = null) {
                 if(_goSlow) {
                     await Task.Delay(300);
                 }
 
-                _numberSink.Add(item);
+                _sink.Add(item);
             }
 
             public Task OnCompletedAsync() {
@@ -268,9 +334,9 @@ namespace MockOrleans.Tests
 
 
         [Serializable]
-        public class SubscriberState
+        public class SubscriberState<T>
         {
-            public StreamSubscriptionHandle<int> SubscriptionHandle { get; set; }
+            public StreamSubscriptionHandle<T> SubscriptionHandle { get; set; }
         }
 
 

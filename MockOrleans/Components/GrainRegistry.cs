@@ -35,18 +35,41 @@ namespace MockOrleans
     public static class GrainPlacementExtensions
     {
         public static GrainHarness GetActivation(this GrainPlacement placement)
-            => placement.Registry.GetActivation(placement);
+            => placement.Registry.GetActivation(placement);       
+
+    }
+
+
+    public static class GrainRegistryExtensions {
+
+        public static GrainPlacement GetPlacement<TGrain>(this GrainRegistry reg, Guid id)
+            where TGrain : IGrainWithGuidKey
+            => reg.GetPlacement(reg.GetKey<TGrain>(id));
 
 
         public static GrainHarness GetActivation(this GrainRegistry reg, GrainKey key)
             => reg.GetPlacement(key).GetActivation();
 
+
+        public static GrainHarness GetActivation<TGrain>(this GrainRegistry reg, Guid id)
+            where TGrain : IGrainWithGuidKey
+            => reg.GetPlacement<TGrain>(id).GetActivation();
+
+
+
+
+        public static GrainKey GetKey<TGrain>(this GrainRegistry reg, Guid id)
+            where TGrain : IGrainWithGuidKey
+        {
+            var grainType = reg.Fixture.Types.GetConcreteType(typeof(TGrain));
+            return new GrainKey(grainType, id);
+        }
+        
     }
 
 
 
 
-    
     public class GrainRegistry
     {
         public MockFixture Fixture { get; private set; }

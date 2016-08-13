@@ -55,7 +55,7 @@ namespace MockOrleans.Tests
 
         
         [Test]
-        public async Task StateClonedViaSerializerOnStorage() 
+        public async Task StateGoesViaSerializerOnStorage() 
         {
             var fx = new MockFixture();
             fx.Types.Map<IDogStorer, DogStorer>();

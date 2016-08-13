@@ -12,7 +12,7 @@ using System.Collections.Concurrent;
 namespace MockOrleans.Grains
 {
     using FnProxifier = Func<MockFixture, ResolvedGrainKey, GrainProxy>;
-    
+
 
     public abstract class GrainProxy : Grain {    //inheriting Grain is a hack in order to use Orleans extensions methods nicely
         
@@ -33,28 +33,28 @@ namespace MockOrleans.Grains
         
         protected Task<TResult> Dispatch<TResult>(MethodInfo method, object[] args) 
         {
+            var argData = new byte[args.Length][];
+
             for(int i = 0; i< args.Length; i++) {
                 var arg = args[i];
 
-                if(arg is GrainProxy) continue; //remember - GrainProxy is now a Grain too!
-                             
-                if(arg is Grain) { //proxify before passing to grain method
+                //proxify before passing to grain method
+                if(arg is Grain && !(arg is GrainProxy)) {  //nb GrainProxy derives from Grain these days
                     var argKey = ((IGrain)arg).GetGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
 
                     var param = method.GetParameters()[i];
 
                     var grainKey = new ResolvedGrainKey(param.ParameterType, argKey.ConcreteType, argKey.Key);
                                         
-                    args[i] = Proxify(Fixture, grainKey);
+                    arg = Proxify(Fixture, grainKey);
                 }
-                else {                  
-                    args[i] = Fixture.Serializer.Clone(arg);
-                }
+                                
+                argData[i] = Fixture.Serializer.Serialize(arg);
             }
 
             var endpoint = Fixture.Grains.GetGrainEndpoint(Key);
 
-            return endpoint.Invoke<TResult>(method, args);
+            return endpoint.Invoke<TResult>(method, argData);
         }
 
         public override string ToString() => $"Proxy:{Key}";
@@ -70,11 +70,11 @@ namespace MockOrleans.Grains
             var proxifier = _dProxifiers.GetOrAdd(
                                             key.ConcreteType,
                                             t => BuildProxifier(t));
-
+            
             return proxifier(fx, key);
         }
 
-        
+               
 
 
         static MethodInfo _mProxyGetGrain = typeof(GrainProxy)
@@ -86,6 +86,10 @@ namespace MockOrleans.Grains
         static MethodInfo _mgProxyDispatch = typeof(GrainProxy)
                                                 .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
                                                 .First(m => m.Name == "Dispatch" && m.IsGenericMethodDefinition);
+
+
+        //should proxy a certain interface, and then in construction take a certain lambda to handle each call
+        //...
 
         
         public static FnProxifier BuildProxifier(Type tGrain) {

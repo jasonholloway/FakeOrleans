@@ -14,54 +14,8 @@ using Orleans.Providers;
 
 namespace MockOrleans.Grains
 {
-    //using FnConstructor = Func<IGrainIdentity, IGrainRuntime, IGrain>;
     using FnStorageAssigner = Action<Grain, IStorage>;
     using FnStateExtractor = Func<Grain, IGrainState>;
-
-
-    //class StorageProviderAdaptor : IStorageProvider
-    //{
-    //    GrainKey _key;
-    //    IStateStore _store;
-
-    //    public StorageProviderAdaptor(GrainKey key, IStateStore store) {
-    //        _key = key;
-    //        _store = store;
-    //    }
-
-    //    public Task ClearStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-    //        => _store.Clear(_key);
-        
-    //    public Task ReadStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-    //        => _store.ReadFrom(_key, grainState);
-
-    //    public Task WriteStateAsync(string grainType, GrainReference grainReference, IGrainState grainState)
-    //        => _store.WriteTo(_key, grainState);
-
-    //    #region IProvider
-
-    //    public Logger Log {
-    //        get {
-    //            throw new NotImplementedException();
-    //        }
-    //    }
-
-    //    public string Name {
-    //        get {
-    //            throw new NotImplementedException();
-    //        }
-    //    }
-
-    //    public Task Close() {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task Init(string name, IProviderRuntime providerRuntime, IProviderConfiguration config) {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    #endregion
-    //}
     
 
     public static class GrainActivator
@@ -70,12 +24,12 @@ namespace MockOrleans.Grains
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
 
 
-        public static async Task<IGrain> Activate(IGrainRuntime runtime, GrainPlacement placement, GrainStorage grainStorage)
+        public static async Task<IGrain> Activate(GrainHarness harness, GrainPlacement placement, StorageCell grainStorage)
         {
             var key = placement.Key;
             var grainType = key.ConcreteType;
 
-            var creator = new GrainCreator(runtime, runtime.ServiceProvider);
+            var creator = new GrainCreator(harness, ((IGrainRuntime)harness).ServiceProvider);
             
             var stateType = GetStateType(grainType);
 
@@ -90,7 +44,7 @@ namespace MockOrleans.Grains
 
                 var grainState = fnStateExtractor(grain);
 
-                var bridge = new StoreBridge(grainStorage, grainState);
+                var bridge = new GrainStorageBridge(harness, grainStorage, grainState);
                 fnStorageAssign(grain, bridge);
 
                 await bridge.ReadStateAsync();                
@@ -172,12 +126,14 @@ namespace MockOrleans.Grains
 
         
 
-        class StoreBridge : IStorage
+        class GrainStorageBridge : IStorage
         {
-            public GrainStorage Storage { get; private set; }
-            public IGrainState State { get; private set; }
+            public readonly GrainHarness Activation;
+            public readonly StorageCell Storage;
+            public readonly IGrainState State;
 
-            public StoreBridge(GrainStorage storage, IGrainState state) {
+            public GrainStorageBridge(GrainHarness activation, StorageCell storage, IGrainState state) {
+                Activation = activation;
                 Storage = storage;
                 State = state;
             }
@@ -188,18 +144,17 @@ namespace MockOrleans.Grains
             }
 
             public Task WriteStateAsync() {
-                Storage.Write(State);
+                Storage.Write(State, Activation.Serializer);
                 return Task.CompletedTask;
             }
 
             public Task ReadStateAsync() {
-                Storage.Read(State);
+                Storage.Read(State, Activation.Serializer);
                 return Task.CompletedTask;
             }
         }
-
-
-
+        
+                
 
         class DummyStorageProvider : IStorageProvider
         {
@@ -235,10 +190,6 @@ namespace MockOrleans.Grains
                 throw new NotImplementedException();
             }
         }
-
-
-
-
-
+        
     }
 }

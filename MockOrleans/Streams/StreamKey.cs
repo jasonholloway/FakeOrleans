@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace MockOrleans.Streams
 {
     [Serializable]
-    public struct StreamKey : IStreamIdentity
+    public struct StreamKey : IStreamIdentity, IEquatable<StreamKey>
     {
         public readonly string ProviderName;
         public readonly string Namespace;
@@ -29,6 +29,23 @@ namespace MockOrleans.Streams
         string IStreamIdentity.Namespace {
             get { return Namespace; }
         }
+
+        #endregion
+
+        #region overrides
+
+        public bool Equals(StreamKey other)
+            => other.ProviderName.Equals(ProviderName)
+                && other.Namespace.Equals(Namespace)
+                && other.Id.Equals(Id);
+
+        public override bool Equals(object obj)
+            => obj is StreamKey && Equals((StreamKey)obj);
+
+        public override int GetHashCode()
+            => (ProviderName.GetHashCode() << 16)
+                ^ Namespace.GetHashCode()
+                ^ Id.GetHashCode(); 
 
         #endregion
 

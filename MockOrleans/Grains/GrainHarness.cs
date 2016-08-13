@@ -16,27 +16,7 @@ using Orleans.Providers;
 using MockOrleans.Streams;
 
 namespace MockOrleans.Grains
-{       
-    
-    
-    public class StreamObserverRegistry
-    {
-        ConcurrentDictionary<StreamKey, object> _dObservers = new ConcurrentDictionary<StreamKey, object>();
-        
-        public void Register<T>(StreamKey streamKey, IAsyncObserver<T> observer) {
-            _dObservers[streamKey] = observer;
-        }
-        
-        public IAsyncObserver<T> Find<T>(StreamKey streamKey) {
-            object observer = null;
-            _dObservers.TryGetValue(streamKey, out observer);
-            return observer as IAsyncObserver<T>;
-        }
-    }
-    
-    
-    
-     
+{    
 
     public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
     {
@@ -44,10 +24,11 @@ namespace MockOrleans.Grains
         public readonly GrainPlacement Placement;
         public readonly GrainSpec Spec;
         public readonly TaskScheduler Scheduler;
+        public readonly MockSerializer Serializer;
         public readonly RequestRegistry Requests;
         public readonly ExceptionSink Exceptions;
         public readonly MockTimerRegistry Timers;
-        public readonly StreamObserverRegistry StreamObservers;
+        public readonly StreamReceiverRegistry StreamReceivers;
 
         
         IGrain Grain { get; set; } = null;
@@ -60,9 +41,10 @@ namespace MockOrleans.Grains
             Spec = GrainSpec.GetFor(placement.Key.ConcreteType);
             Exceptions = new ExceptionSink(fx.Exceptions);
             Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
+            Serializer = new MockSerializer(new GrainContext(fx, this));
             Requests = new RequestRegistry(Scheduler, fx.Requests);
             Timers = new MockTimerRegistry(this);
-            StreamObservers = new StreamObserverRegistry();
+            StreamReceivers = new StreamReceiverRegistry(Serializer);
         }
 
 
@@ -140,10 +122,11 @@ namespace MockOrleans.Grains
         public Task Invoke(Func<Task> fn)
             => Invoke(() => fn().Box());
 
-        public Task<TResult> Invoke<TResult>(MethodInfo method, object[] args)
-            => Invoke(() => CallMethod<TResult>(method, args));
-
+        public Task<TResult> Invoke<TResult>(MethodInfo method, byte[][] argData)
+            => Invoke(() => CallMethod<TResult>(method, argData));
         
+        public Task Invoke<TInterface>(Func<TInterface, Task> fn)
+            => Invoke(() => fn((TInterface)Grain));
 
 
         async Task ActivateGrain() {
@@ -152,8 +135,12 @@ namespace MockOrleans.Grains
 
 
         //below guaranteed to be single-threaded
-        async Task<TResult> CallMethod<TResult>(MethodInfo method, object[] args) 
+        async Task<TResult> CallMethod<TResult>(MethodInfo method, byte[][] argData) 
         {
+            var args = argData    //this should be done before entering the single-request zone, really - still on this grain's scheduler, though
+                        .Select(d => Serializer.Deserialize(d))
+                        .ToArray();
+            
             if(typeof(TResult).Equals(typeof(VoidType))) {
 
                 try {

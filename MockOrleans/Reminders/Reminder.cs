@@ -1,4 +1,5 @@
-﻿using Orleans;
+﻿using MockOrleans.Grains;
+using Orleans;
 using Orleans.Runtime;
 using System;
 using System.Collections.Concurrent;
@@ -68,7 +69,7 @@ namespace MockOrleans.Reminders
 
                                 if(status != ReminderState.Cancelled) {
                                     var endpoint = _fx.Grains.GetGrainEndpoint(_key);
-                                    await endpoint.Invoke<VoidType>(_mReceiveRemindable, new object[] { _name, default(TickStatus) });
+                                    await endpoint.Invoke<IRemindable>(r => r.ReceiveReminder(_name, default(TickStatus)));                                    
                                 }
 
                             }, _fx.Scheduler)

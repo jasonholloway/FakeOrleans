@@ -19,13 +19,22 @@ namespace MockOrleans
 
     public class FixtureContext : ISerializationContext
     {
-        public MockFixture Fixture { get; set; }
+        public readonly MockFixture Fixture;
+
+        public FixtureContext(MockFixture fx) {
+            Fixture = fx;
+        }
     }
 
 
     public class GrainContext : FixtureContext
     {
-        public GrainHarness Activation { get; set; }
+        public readonly GrainHarness Activation;
+
+        public GrainContext(MockFixture fx, GrainHarness activation) 
+            : base(fx) {
+            Activation = activation;
+        }
     }
 
 
