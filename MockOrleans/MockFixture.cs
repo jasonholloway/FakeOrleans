@@ -38,7 +38,7 @@ namespace MockOrleans
             Scheduler = new FixtureScheduler(Exceptions);
             Requests = new RequestRegistry(Scheduler);
             Services = new ServiceRegistry(services);          
-            Types = new TypeMap();
+            Types = new TypeMap(this);
             GrainFactory = new MockGrainFactory(this);
             Stores = new StorageRegistry(Serializer);
             Grains = new GrainRegistry(this);

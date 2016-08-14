@@ -20,7 +20,14 @@ namespace MockOrleans
     public class TypeMap
     {
         ConcurrentDictionary<Type, Type> _dMap = new ConcurrentDictionary<Type, Type>();
+
+        MockFixture _fx;
+
+        public TypeMap(MockFixture fx) {
+            _fx = fx;
+        }
         
+
         public Type GetConcreteType(Type abstractType) {
             return _dMap.GetOrAdd(abstractType, t => Resolve(t));
         }
@@ -32,6 +39,11 @@ namespace MockOrleans
                                 || abstractType.IsAssignableFrom(concreteType));
 
             _dMap.AddOrUpdate(abstractType, concreteType, (_, __) => concreteType);
+
+
+            //check out stream subscription... 
+
+
         }
         
 

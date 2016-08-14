@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Orleans.Runtime;
 
 namespace MockOrleans.Tests
 {
@@ -192,6 +193,86 @@ namespace MockOrleans.Tests
             Assert.That(received, Is.Empty);
         }
 
+
+
+
+        [Test]
+        public async Task ImplicitStreamSubcriptionsWork() 
+        {
+            var fx = new MockFixture();
+            fx.Types.Map(typeof(IImplicitSubscriber<>), typeof(ImplicitSubscriber<>));
+            fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
+
+            var received = fx.Services.Inject(new ConcurrentBag<int>());
+            
+            var pub = fx.GrainFactory.GetGrain<IPublisher<int>>(Guid.NewGuid());
+
+            await pub.SwitchStream("one", Guid.NewGuid());
+            await pub.Publish(1);
+
+            await pub.SwitchStream("two", Guid.NewGuid());
+            await pub.Publish(2);
+
+            await pub.SwitchStream("three", Guid.NewGuid());
+            await pub.Publish(3);
+            
+            await fx.Requests.WhenIdle();
+
+            Assert.That(received, Is.EqualTo(new[] { 1, 3 }));
+        }
+
+
+
+
+        public interface IImplicitSubscriber<T> : IGrainWithGuidKey
+        { }
+
+
+        [ImplicitStreamSubscription("one")]
+        [ImplicitStreamSubscription("three")]
+        public class ImplicitSubscriber<T> : Grain, IImplicitSubscriber<T>, IAsyncObserver<int>
+        {
+            ConcurrentBag<int> _received;
+
+            public ImplicitSubscriber(ConcurrentBag<int> received) {
+                _received = received;
+            }
+            
+            public override Task OnActivateAsync() 
+            {
+                {
+                    var streamProv = GetStreamProvider(StreamProviderName);
+                    var stream = streamProv.GetStream<int>(this.GetPrimaryKey(), "one");
+                    stream.SubscribeAsync(this);
+                }
+
+                {
+                    var streamProv = GetStreamProvider(StreamProviderName);
+                    var stream = streamProv.GetStream<int>(this.GetPrimaryKey(), "three");
+                    stream.SubscribeAsync(this);
+                }
+
+                return Task.CompletedTask;
+            }
+
+            Task IAsyncObserver<int>.OnCompletedAsync() {
+                throw new NotImplementedException();
+            }
+
+            Task IAsyncObserver<int>.OnErrorAsync(Exception ex) {
+                throw new NotImplementedException();
+            }
+
+            Task IAsyncObserver<int>.OnNextAsync(int item, StreamSequenceToken token) {
+                _received.Add(item);
+                return Task.CompletedTask;
+            }
+        }
+
+
+
+
+
         
 
         [Test]
@@ -239,6 +320,7 @@ namespace MockOrleans.Tests
         {
             Task Publish(T val);
             Task PublishNewTwice();
+            Task SwitchStream(string @namespace, Guid streamId);
         }
 
         public class Publisher<T> : Grain, IPublisher<T>
@@ -263,6 +345,11 @@ namespace MockOrleans.Tests
                 return Task.CompletedTask;
             }
 
+            public Task SwitchStream(string @namespace, Guid streamId) {
+                var streamProv = GetStreamProvider(StreamProviderName);
+                _stream = streamProv.GetStream<T>(streamId, @namespace);
+                return Task.CompletedTask;
+            }
         }
 
         
