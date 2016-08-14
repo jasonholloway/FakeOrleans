@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MockOrleans.Grains;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,8 +21,10 @@ namespace MockOrleans
     public class TypeMap
     {
         ConcurrentDictionary<Type, Type> _dMap = new ConcurrentDictionary<Type, Type>();
+        Queue<Action<Type>> _qTypeProcessors = new Queue<Action<Type>>();
 
         MockFixture _fx;
+
 
         public TypeMap(MockFixture fx) {
             _fx = fx;
@@ -40,12 +43,31 @@ namespace MockOrleans
 
             _dMap.AddOrUpdate(abstractType, concreteType, (_, __) => concreteType);
 
+            ProcessType(concreteType);
+        }
 
-            //check out stream subscription... 
 
-
+        internal void AddTypeProcessor(Action<Type> fn) {
+            lock(_qTypeProcessors) _qTypeProcessors.Enqueue(fn);
         }
         
+
+        HashSet<Type> _processedTypes = new HashSet<Type>();
+
+        void ProcessType(Type grainType) 
+        {
+            lock(_processedTypes) {
+                if(_processedTypes.Contains(grainType)) {
+                    return;
+                }
+
+                _processedTypes.Add(grainType);
+            }
+
+            lock(_qTypeProcessors) _qTypeProcessors.ForEach(fn => fn(grainType));
+        }
+
+
 
         Type Resolve(Type abstractType) 
         {

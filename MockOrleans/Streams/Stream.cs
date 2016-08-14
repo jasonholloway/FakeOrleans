@@ -73,8 +73,7 @@ namespace MockOrleans.Streams
             _dSubscriptions.TryRemove(subKey.SubscriptionId, out _);
         }
 
-
-
+        
 
 
         [Serializable]
@@ -142,7 +141,7 @@ namespace MockOrleans.Streams
 
             void Perform(Func<IStreamSink, Task> fn) 
             {
-                var activation = GrainReg.GetActivation(GrainKey); //observer usually populated here
+                var activation = GrainReg.GetActivation(GrainKey); //THIS SHOULD TRIGGER ACTIVATION!
 
                 var observer = activation.StreamReceivers.Find(Key);
 
