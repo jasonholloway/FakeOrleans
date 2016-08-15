@@ -62,6 +62,8 @@ namespace MockOrleans
 
         public byte[] Serialize(object inp) 
         {
+            if(inp == null) return null;
+
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
                                     new StreamingContext(StreamingContextStates.All, _ctx));
@@ -76,6 +78,8 @@ namespace MockOrleans
 
         public object Deserialize(byte[] bytes) 
         {
+            if(bytes == null) return null;
+
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
                                     new StreamingContext(StreamingContextStates.All, _ctx));
