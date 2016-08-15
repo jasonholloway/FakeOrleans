@@ -200,7 +200,7 @@ namespace MockOrleans.Tests
         public async Task ImplicitStreamSubcriptionsWork() 
         {
             var fx = new MockFixture();
-            fx.Types.Map(typeof(IImplicitSubscriber<>), typeof(ImplicitSubscriber<>));
+            fx.Types.Map<IImplicitSubscriber<int>, ImplicitSubscriber<int>>(); //have to register resolved gen types for imp subs to function
             fx.Types.Map(typeof(IPublisher<>), typeof(Publisher<>));
 
             var received = fx.Services.Inject(new ConcurrentBag<int>());

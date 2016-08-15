@@ -55,11 +55,15 @@ namespace MockOrleans.Streams
         
         
 
-        public SubKey Subscribe(GrainKey grainKey) 
+        public SubKey Subscribe(GrainKey grainKey, bool isImplicit = false) 
         {
+            var subs = _dSubscriptions.Values.ToArray();
+            var foundImplicitSub = subs.FirstOrDefault(s => s.IsImplicit && s.GrainKey.Equals(grainKey));
+            if(foundImplicitSub != null) return foundImplicitSub.Key;
+            
             var subKey = new SubKey(Key, Guid.NewGuid());
 
-            var subscription = new Subscription(subKey, grainKey, this, _grainReg);
+            var subscription = new Subscription(subKey, grainKey, this, _grainReg, isImplicit);
 
             _dSubscriptions[subKey.SubscriptionId] = subscription;
 
@@ -112,13 +116,15 @@ namespace MockOrleans.Streams
             public readonly GrainKey GrainKey;
             public readonly Stream Stream;
             public readonly GrainRegistry GrainReg;
+            public readonly bool IsImplicit;
             
             
-            public Subscription(SubKey key, GrainKey grainKey, Stream stream, GrainRegistry grainReg) {
+            public Subscription(SubKey key, GrainKey grainKey, Stream stream, GrainRegistry grainReg, bool isImplicit) {
                 Key = key;
                 GrainKey = grainKey;
                 Stream = stream;
                 GrainReg = grainReg;
+                IsImplicit = isImplicit;
             }
             
             //stream should be generic really...
@@ -141,7 +147,7 @@ namespace MockOrleans.Streams
 
             void Perform(Func<IStreamSink, Task> fn) 
             {
-                var activation = GrainReg.GetActivation(GrainKey); //THIS SHOULD TRIGGER ACTIVATION!
+                var activation = GrainReg.GetActivation(GrainKey); //THIS SHOULD TRIGGER ACTIVATION! but currently doesn't
 
                 var observer = activation.StreamReceivers.Find(Key);
 

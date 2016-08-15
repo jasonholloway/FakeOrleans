@@ -31,7 +31,7 @@ namespace MockOrleans.Streams
             var key = new StreamKey(Name, streamNamespace, streamId);
             
             var stream = _streamReg.GetStream(key);
-            
+                        
             return new GrainStreamClient<T>(_activation, stream, _streamReg);
         }
 

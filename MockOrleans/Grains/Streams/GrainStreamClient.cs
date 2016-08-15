@@ -65,7 +65,16 @@ namespace MockOrleans.Grains
 
         #region IAsyncObservable<T>
 
-        public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer) {
+        public Task<StreamSubscriptionHandle<T>> SubscribeAsync(IAsyncObserver<T> observer) 
+        {
+            //oddly, there's special implicit-only logic here
+            //if this stream is implicit, then we just reattach our observer, no subscription-creation required...
+
+            //how de we know if we're implicit or not? The client should be in a different mode maybe
+            //but the client gets created from the StreamProviderAdaptor: this latter then needs to know whether
+            //its creation is implicitly subscribed or not
+
+
             var subKey = _stream.Subscribe(_grainKey);
 
             _activation.StreamReceivers.Register(subKey, observer);

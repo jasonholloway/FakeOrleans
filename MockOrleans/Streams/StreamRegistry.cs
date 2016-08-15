@@ -39,7 +39,7 @@ namespace MockOrleans.Streams
             if(_dImplicitSubTypes.TryGetValue(key.Namespace, out implicitSubGrainTypes)) {
                 implicitSubGrainTypes.ForEach(grainType => {
                     var grainKey = new GrainKey(grainType, key.Id);
-                    stream.Subscribe(grainKey);
+                    stream.Subscribe(grainKey, true);
                 });
             }
 
