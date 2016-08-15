@@ -8,22 +8,24 @@ using System.Threading.Tasks;
 namespace MockOrleans
 {
 
-    public class RequestRegistry
+    public class RequestRunner
     {
         TaskScheduler _scheduler;
-        RequestRegistry _innerReqs;
+        ExceptionSink _exceptionSink;
+        RequestRunner _innerReqs;
         int _count;
         Queue<TaskCompletionSource<bool>> _waitingTaskSources;
         object _sync = new object();
 
-        public RequestRegistry(TaskScheduler scheduler, RequestRegistry innerReqs = null) {
+        public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner innerReqs = null) {
             _scheduler = scheduler;
+            _exceptionSink = exceptionSink;
             _innerReqs = innerReqs;
             _waitingTaskSources = new Queue<TaskCompletionSource<bool>>();
         }
 
 
-        public void Increment() {
+        void Increment() {
             lock(_sync) {
                 _count++;
             }
@@ -32,7 +34,7 @@ namespace MockOrleans
         }
 
         //Not convinced by below
-        public void Decrement() {
+        void Decrement() {
             Queue<TaskCompletionSource<bool>> capturedTaskSources = null;
             
             lock(_sync) {
@@ -48,20 +50,38 @@ namespace MockOrleans
         }
 
 
-        public void Perform(Func<Task> fn) 
+        //and also - current request, if isolated, should be protected from intrusion
+        //...
+
+
+        public void PerformAndForget(Func<Task> fn, bool isolate = false)
+            => Perform(fn, isolate)
+                .ContinueWith(t => {
+                    _exceptionSink.Add(t.Exception); //will this duplicate exceptions?
+                }, TaskContinuationOptions.OnlyOnFaulted);
+
+
+
+        public Task Perform(Func<Task> fn, bool isolate = false)
+            => Perform(async () => {
+                            await fn();
+                            return default(VoidType);
+                        });
+        
+
+        public Task<T> Perform<T>(Func<Task<T>> fn, bool isolate = false) 
         {
-            var task = new Task<Task>(fn);
+            var task = new Task<Task<T>>(fn);
 
             Increment();
             task.Start(_scheduler);
-            
-            task.Unwrap().ContinueWith(
-                                t => {
+
+            return task.Unwrap()
+                    .ContinueWith(t => {
                                     Decrement();
 
-                                    if(t.IsFaulted) {
-                                        var ex = t.Exception; //this should be marshalled somewhere visible
-                                    }
+                                    if(t.IsFaulted) throw t.Exception;
+                                    else return t.Result;             
                                 }, _scheduler);
         }
 

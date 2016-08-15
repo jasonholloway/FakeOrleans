@@ -15,7 +15,7 @@ namespace MockOrleans
     public class MockFixture
     {
         public readonly FixtureScheduler Scheduler;
-        public readonly RequestRegistry Requests;
+        public readonly RequestRunner Requests;
         public readonly ExceptionSink Exceptions;
         
         public readonly TypeMap Types;
@@ -36,13 +36,13 @@ namespace MockOrleans
             Serializer = new MockSerializer(this);
             Exceptions = new ExceptionSink();
             Scheduler = new FixtureScheduler(Exceptions);
-            Requests = new RequestRegistry(Scheduler);
+            Requests = new RequestRunner(Scheduler, Exceptions);
             Services = new ServiceRegistry(services);          
             Types = new TypeMap(this);
             GrainFactory = new MockGrainFactory(this);
             Stores = new StorageRegistry(Serializer);
             Grains = new GrainRegistry(this);
-            Streams = new StreamRegistry(Grains, Types);
+            Streams = new StreamRegistry(Grains, Requests, Types);
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
         }

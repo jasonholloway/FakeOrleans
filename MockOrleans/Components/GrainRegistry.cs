@@ -34,7 +34,7 @@ namespace MockOrleans
 
     public static class GrainPlacementExtensions
     {
-        public static GrainHarness GetActivation(this GrainPlacement placement)
+        public static Task<GrainHarness> GetActivation(this GrainPlacement placement)
             => placement.Registry.GetActivation(placement);       
 
     }
@@ -47,11 +47,11 @@ namespace MockOrleans
             => reg.GetPlacement(reg.GetKey<TGrain>(id));
 
 
-        public static GrainHarness GetActivation(this GrainRegistry reg, GrainKey key)
+        public static Task<GrainHarness> GetActivation(this GrainRegistry reg, GrainKey key)
             => reg.GetPlacement(key).GetActivation();
 
 
-        public static GrainHarness GetActivation<TGrain>(this GrainRegistry reg, Guid id)
+        public static Task<GrainHarness> GetActivation<TGrain>(this GrainRegistry reg, Guid id)
             where TGrain : IGrainWithGuidKey
             => reg.GetPlacement<TGrain>(id).GetActivation();
 
@@ -73,15 +73,7 @@ namespace MockOrleans
     public class GrainRegistry
     {
         public MockFixture Fixture { get; private set; }
-        //public ConcurrentDictionary<GrainKey, GrainHarness> Harnesses { get; private set; }
-
-
-        //public IReadOnlyDictionary<GrainPlacement, GrainHarness> Activations {
-        //    get { return new ReadOnlyDictionary<GrainPlacement, GrainHarness>(_dActivations); }
-        //}
-
-
-
+        
         ConcurrentDictionary<GrainPlacement, GrainHarness> _dActivations;
 
 
@@ -92,9 +84,9 @@ namespace MockOrleans
         }
                 
 
-        internal IGrainEndpoint GetGrainEndpoint(GrainKey key) {
+        internal async Task<IGrainEndpoint> GetGrainEndpoint(GrainKey key) {
             var placement = GetPlacement(key);
-            return GetActivation(placement);
+            return await GetActivation(placement);
         }
 
         
@@ -122,8 +114,14 @@ namespace MockOrleans
 
 
 
-        public GrainHarness GetActivation(GrainPlacement placement)
-            => _dActivations.GetOrAdd(placement, p => new GrainHarness(Fixture, p));
+        public async Task<GrainHarness> GetActivation(GrainPlacement placement) 
+        {
+            var harness = _dActivations.GetOrAdd(placement, p => new GrainHarness(Fixture, p));
+            
+            await harness.Activate();
+
+            return harness;
+        }
 
 
 

@@ -45,15 +45,13 @@ namespace MockOrleans.Grains
             if(_disposed) throw new ObjectDisposedException(nameof(GrainTaskScheduler));
 
             lock(_sync) {
-                _last = _last.ContinueWith(_ => {
-                    
-                                bool res = TryExecuteTask(task);
+                _last = _last.ContinueWith(_ => {                    
+                            bool res = TryExecuteTask(task);
 
-                                if(task.IsFaulted) {
-                                    _exceptionSink.Add(task.Exception); //need to distinguish between loose and handled exceptions
-                                }
-
-                            }, _cancelToken, TaskContinuationOptions.None, _innerScheduler); //catch exceptions also?                
+                            if(task.IsFaulted) {
+                                _exceptionSink.Add(task.Exception); //need to distinguish between loose and handled exceptions
+                            }
+                        }, _cancelToken, TaskContinuationOptions.None, _innerScheduler); //catch exceptions also?                
             }
         }
 

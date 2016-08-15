@@ -25,7 +25,7 @@ namespace MockOrleans.Grains
         public readonly GrainSpec Spec;
         public readonly TaskScheduler Scheduler;
         public readonly MockSerializer Serializer;
-        public readonly RequestRegistry Requests;
+        public readonly RequestRunner Requests;
         public readonly ExceptionSink Exceptions;
         public readonly MockTimerRegistry Timers;
         public readonly StreamReceiverRegistry StreamReceivers;
@@ -42,7 +42,7 @@ namespace MockOrleans.Grains
             Exceptions = new ExceptionSink(fx.Exceptions);
             Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
             Serializer = new MockSerializer(new GrainContext(fx, this));
-            Requests = new RequestRegistry(Scheduler, fx.Requests);
+            Requests = new RequestRunner(Scheduler, Exceptions, fx.Requests);
             Timers = new MockTimerRegistry(this);
             StreamReceivers = new StreamReceiverRegistry(Serializer);
         }
@@ -56,27 +56,46 @@ namespace MockOrleans.Grains
         }
         
         
-        
+
+        Task _tActivating = null;
+        public volatile bool IsDead = false;
+
+
+        public async Task Activate() 
+        {            
+            if(_tActivating == null) {  //failures should reset tActivating to null
+                _tActivating = Requests.Perform(ActivateGrain, true);   //and exceptions? returning them here seems reasonable
+            }                                                           //though tActivating needs to revert to null 
+                                                                        //Requests.Perform also packages errors...
+            await _tActivating;
+        }
+
 
 
         public async Task Deactivate() 
         {
-            await _smActive.WaitAsync();  //uncomfortable with semaphores being used here... for public use should have deactivateonidle only - which we already have below...
+            IsDead = true; //should stop further requests being queued... TO DO
 
-            try {
-                Timers.Clear();
+            await Requests.Perform(DeactivateGrain, true);
+        }
 
-                await ((Grain)Grain).OnDeactivateAsync();
 
-                _tActivating = null; 
-                Grain = null;
-            }
-            catch(Exception ex) {
-                throw ex;
-            }
-            finally {
-                _smActive.Release();
-            }
+
+
+
+        async Task ActivateGrain() {
+            Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
+        }
+
+
+        async Task DeactivateGrain() 
+        {
+            Timers.Clear(); //timers will themselves raise interleavable requests, and so will be muffled by IsDead
+
+            await ((Grain)Grain).OnDeactivateAsync();
+
+            _tActivating = null; 
+            Grain = null;
         }
 
         
@@ -84,41 +103,13 @@ namespace MockOrleans.Grains
 
         #region IGrainEndpoint
         
-        SemaphoreSlim _smActive = new SemaphoreSlim(1);
-        Task _tActivating = null;
+        //SemaphoreSlim _smActive = new SemaphoreSlim(1);
 
-        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn) 
-        {
-            //single-threaded below - though sometimes interleaved - BETTER TO USE REQUESTS.PERFORM() ???
-            var t = new Task<Task<TResult>>(async () => {
-
-                Requests.Increment();
-                if(!Spec.IsReentrant) await _smActive.WaitAsync();
-
-                try {               
-                    if(_tActivating == null) {
-                        _tActivating = ActivateGrain();
-                    }
-                    
-                    await _tActivating;
-                    
-                    return await fn();                    
-                }
-                catch(Exception) {
-                    throw; //strangely, swallowing exception unless rethrown (really???)
-                }
-                finally {
-                    if(!Spec.IsReentrant) _smActive.Release();
-                    Requests.Decrement();
-                }
-            });
-            
-            t.Start(Scheduler);
-            
-            return t.Unwrap();
+        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn) {
+            bool isolate = !Spec.IsReentrant;
+            return Requests.Perform(fn, isolate);            
         }
-
-
+        
         public Task Invoke(Func<Task> fn)
             => Invoke(() => fn().Box());
 
@@ -128,10 +119,6 @@ namespace MockOrleans.Grains
         public Task Invoke<TInterface>(Func<TInterface, Task> fn)
             => Invoke(() => fn((TInterface)Grain));
 
-
-        async Task ActivateGrain() {
-            Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
-        }
 
 
         //below guaranteed to be single-threaded
@@ -155,34 +142,14 @@ namespace MockOrleans.Grains
                         
             return await (Task<TResult>)method.Invoke(Grain, args);
         }
-        
-        
-        
 
 
+        
         //FOR DEBUGGING ONLY! DON'T USE ELSEWHERE!!!
-        public async Task<IGrain> GetGrain() 
-        {
-            Requests.Increment();
-            var success = await _smActive.WaitAsync(1000);
-
-            if(!success) {
-                throw new InvalidOperationException("Can't access grain during method call!");
-            }
-
-            try {
-                if(_tActivating == null) _tActivating = ActivateGrain();
-
-                await _tActivating;
-
-                return Grain;
-            }
-            finally {
-                _smActive.Release();
-                Requests.Decrement();
-            }
-        }
+        public Task<IGrain> GetGrain()
+            => Task.FromResult(Grain);
         
+
         #endregion
                        
 
@@ -235,7 +202,7 @@ namespace MockOrleans.Grains
         protected virtual void Dispose(bool disposing) {
             if(!disposedValue) {
                 if(disposing) {
-                    _smActive.Dispose();
+                    //_smActive.Dispose();
                     Timers.Dispose();
                 }
 

@@ -22,7 +22,9 @@ namespace MockOrleans.Tests
             var tallies = fx.Services.Inject(new ConcurrentBag<int>());
             var delay = fx.Services.Inject(0);
 
-            var activation = fx.Grains.GetActivation<IActivatable>(Guid.NewGuid()); //THIS NEEDS TO BE ASYNC!!!!!!!!!!!!!!!
+            var placement = fx.Grains.GetPlacement<IActivatable>(Guid.NewGuid());
+            
+            var activation = await fx.Grains.GetActivation(placement);
             
             Assert.That(tallies, Has.Count.EqualTo(1));
         }

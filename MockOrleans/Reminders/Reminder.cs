@@ -68,7 +68,7 @@ namespace MockOrleans.Reminders
                                 }
 
                                 if(status != ReminderState.Cancelled) {
-                                    var endpoint = _fx.Grains.GetGrainEndpoint(_key);
+                                    var endpoint = await _fx.Grains.GetGrainEndpoint(_key);
                                     await endpoint.Invoke<IRemindable>(r => r.ReceiveReminder(_name, default(TickStatus)));                                    
                                 }
 

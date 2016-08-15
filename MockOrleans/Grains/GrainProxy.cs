@@ -39,7 +39,7 @@ namespace MockOrleans.Grains
                 var arg = args[i];
 
                 //proxify before passing to grain method
-                if(arg is Grain && !(arg is GrainProxy)) {  //nb GrainProxy derives from Grain these days
+                if(arg is Grain && !(arg is GrainProxy)) {  //nb GrainProxy derives from Grain these days, oddly
                     var argKey = ((IGrain)arg).GetGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
 
                     var param = method.GetParameters()[i];
@@ -51,11 +51,13 @@ namespace MockOrleans.Grains
                                 
                 argData[i] = Fixture.Serializer.Serialize(arg);
             }
-
-            var endpoint = Fixture.Grains.GetGrainEndpoint(Key);
-
-            return endpoint.Invoke<TResult>(method, argData);
+            
+            return Fixture.Requests.Perform(async () => {
+                var endpoint = await Fixture.Grains.GetGrainEndpoint(Key);
+                return await endpoint.Invoke<TResult>(method, argData);
+            });
         }
+
 
         public override string ToString() => $"Proxy:{Key}";
 
@@ -207,7 +209,7 @@ namespace MockOrleans.Grains
 
 
         public TGrain Grain {
-            get { return (TGrain)((GrainHarness)Fixture.Grains.GetGrainEndpoint(Key)).GetGrain().Result; } //for debugging only!
+            get { return (TGrain)Fixture.Grains.GetActivation(Key).Result.GetGrain().Result; } //for debugging only!
         }
 
 

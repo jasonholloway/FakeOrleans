@@ -12,13 +12,15 @@ namespace MockOrleans.Streams
     public class StreamRegistry
     {
         GrainRegistry _grains;
+        RequestRunner _requests;
         ConcurrentDictionary<StreamKey, Stream> _dStreams;
         ConcurrentDictionary<string, ConcurrentBag<Type>> _dImplicitSubTypes;
 
 
-        public StreamRegistry(GrainRegistry grains, TypeMap typeMap) 
+        public StreamRegistry(GrainRegistry grains, RequestRunner requests, TypeMap typeMap) 
         {
             _grains = grains;
+            _requests = requests;
             _dStreams = new ConcurrentDictionary<StreamKey, Stream>();
             _dImplicitSubTypes = new ConcurrentDictionary<string, ConcurrentBag<Type>>();
 
@@ -31,7 +33,7 @@ namespace MockOrleans.Streams
 
         Stream CreateStream(StreamKey key) 
         { 
-            var stream = new Stream(key, this, _grains);
+            var stream = new Stream(key, this, _grains, _requests);
 
             //implicit subs -----------------------------------------------------------
             ConcurrentBag<Type> implicitSubGrainTypes;

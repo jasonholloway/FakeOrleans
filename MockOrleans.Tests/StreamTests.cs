@@ -276,14 +276,14 @@ namespace MockOrleans.Tests
         
 
         [Test]
-        public void SubscriptionHandleSerializes() 
+        public async Task SubscriptionHandleSerializes() 
         {
             var fx = new MockFixture();
             fx.Types.Map<IDummy, Dummy>();
             
             var streamKey = new StreamKey("prov", "ns", Guid.NewGuid());
             var subKey = new Stream.SubKey(streamKey, Guid.NewGuid());
-            var activation = fx.Grains.GetActivation<IDummy>(Guid.NewGuid());
+            var activation = await fx.Grains.GetActivation<IDummy>(Guid.NewGuid());
                         
             var serializer = new MockSerializer(new GrainContext(fx, activation));
             

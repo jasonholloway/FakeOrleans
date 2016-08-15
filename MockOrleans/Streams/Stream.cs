@@ -26,14 +26,16 @@ namespace MockOrleans.Streams
 
         StreamRegistry _streamReg;
         GrainRegistry _grainReg;
+        RequestRunner _requests;
         ConcurrentDictionary<Guid, Subscription> _dSubscriptions;
 
 
-        public Stream(StreamKey key, StreamRegistry streamReg, GrainRegistry grainReg)
+        public Stream(StreamKey key, StreamRegistry streamReg, GrainRegistry grainReg, RequestRunner requests)
         {
             Key = key;
             _streamReg = streamReg;
             _grainReg = grainReg;
+            _requests = requests;
             _dSubscriptions = new ConcurrentDictionary<Guid, Subscription>();
         }
 
@@ -63,7 +65,7 @@ namespace MockOrleans.Streams
             
             var subKey = new SubKey(Key, Guid.NewGuid());
 
-            var subscription = new Subscription(subKey, grainKey, this, _grainReg, isImplicit);
+            var subscription = new Subscription(subKey, grainKey, this, _grainReg, _requests, isImplicit);
 
             _dSubscriptions[subKey.SubscriptionId] = subscription;
 
@@ -115,45 +117,43 @@ namespace MockOrleans.Streams
             public readonly SubKey Key;
             public readonly GrainKey GrainKey;
             public readonly Stream Stream;
-            public readonly GrainRegistry GrainReg;
+            public readonly GrainRegistry Grains;
+            public readonly RequestRunner Requests;
             public readonly bool IsImplicit;
             
             
-            public Subscription(SubKey key, GrainKey grainKey, Stream stream, GrainRegistry grainReg, bool isImplicit) {
+            public Subscription(SubKey key, GrainKey grainKey, Stream stream, GrainRegistry grains, RequestRunner requests, bool isImplicit) {
                 Key = key;
                 GrainKey = grainKey;
                 Stream = stream;
-                GrainReg = grainReg;
+                Grains = grains;
+                Requests = requests;
                 IsImplicit = isImplicit;
             }
             
-            //stream should be generic really...
 
-            public Task OnNext(byte[] itemData, StreamSequenceToken token = null) {
-                Perform(o => o.OnNext(itemData, token));
-                return Task.CompletedTask;
-            }
-
-            public Task OnCompleted() {
-                Perform(o => o.OnCompleted());
-                return Task.CompletedTask;
-            }
-
-            public Task OnError(Exception ex) {
-                Perform(o => o.OnError(ex));
-                return Task.CompletedTask;
-            }
+            public Task OnNext(byte[] itemData, StreamSequenceToken token = null)
+                => Perform(o => o.OnNext(itemData, token));
+            
+            public Task OnCompleted()
+                => Perform(o => o.OnCompleted());
+            
+            public Task OnError(Exception ex) 
+                => Perform(o => o.OnError(ex));
             
 
-            void Perform(Func<IStreamSink, Task> fn) 
-            {
-                var activation = GrainReg.GetActivation(GrainKey); //THIS SHOULD TRIGGER ACTIVATION! but currently doesn't
+            Task Perform(Func<IStreamSink, Task> fn) {
+                Requests.PerformAndForget(async () => {
+                    var activation = await Grains.GetActivation(GrainKey);
 
-                var observer = activation.StreamReceivers.Find(Key);
+                    var observer = activation.StreamReceivers.Find(Key);
 
-                if(observer != null) {
-                    activation.Requests.Perform(() => fn(observer));
-                }
+                    if(observer != null) {
+                        activation.Requests.PerformAndForget(() => fn(observer)); //should isolate with the activation default
+                    }
+                });
+
+                return Task.CompletedTask;
             }
                         
         }
