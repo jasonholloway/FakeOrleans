@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace MockOrleans
 {
 
-    public class RequestRunner
+    public class RequestRunner : IDisposable
     {
         TaskScheduler _scheduler;
         ExceptionSink _exceptionSink;
@@ -17,19 +17,22 @@ namespace MockOrleans
         Queue<TaskCompletionSource<bool>> _waitingTaskSources;
         object _sync = new object();
 
-        public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner innerReqs = null) {
+        bool _defaultIsolation = false;
+        volatile bool _currentIsIsolated = false;
+
+
+        public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner innerReqs = null, bool isolate = false) {
             _scheduler = scheduler;
             _exceptionSink = exceptionSink;
             _innerReqs = innerReqs;
             _waitingTaskSources = new Queue<TaskCompletionSource<bool>>();
+            _defaultIsolation = isolate;
         }
 
 
         void Increment() {
-            lock(_sync) {
-                _count++;
-            }
-            
+            lock(_sync) _count++;
+
             _innerReqs?.Increment();
         }
 
@@ -54,7 +57,7 @@ namespace MockOrleans
         //...
 
 
-        public void PerformAndForget(Func<Task> fn, bool isolate = false)
+        public void PerformAndForget(Func<Task> fn, bool? isolate = null)
             => Perform(fn, isolate)
                 .ContinueWith(t => {
                     _exceptionSink.Add(t.Exception); //will this duplicate exceptions?
@@ -62,27 +65,42 @@ namespace MockOrleans
 
 
 
-        public Task Perform(Func<Task> fn, bool isolate = false)
+        public Task Perform(Func<Task> fn, bool? isolate = null)
             => Perform(async () => {
                             await fn();
                             return default(VoidType);
-                        });
+                        }, isolate);
         
 
-        public Task<T> Perform<T>(Func<Task<T>> fn, bool isolate = false) 
+
+        SemaphoreSlim _smActive = new SemaphoreSlim(1);
+
+        public async Task<T> Perform<T>(Func<Task<T>> fn, bool? isolateOverride = null) 
         {
+            bool isolate = isolateOverride.HasValue ? isolateOverride.Value : _defaultIsolation;
+
             var task = new Task<Task<T>>(fn);
 
             Increment();
+
+            if(isolate || _currentIsIsolated) {
+                await _smActive.WaitAsync();
+                if(!isolate) _smActive.Release();
+            }
+
+            _currentIsIsolated = isolate;
+
             task.Start(_scheduler);
 
-            return task.Unwrap()
-                    .ContinueWith(t => {
-                                    Decrement();
+            return await  task.Unwrap()
+                            .ContinueWith(t => {
+                                if(isolate) _smActive.Release();
 
-                                    if(t.IsFaulted) throw t.Exception;
-                                    else return t.Result;             
-                                }, _scheduler);
+                                Decrement();
+                        
+                                if(t.IsFaulted) throw t.Exception;
+                                else return t.Result;             
+                            }, _scheduler);
         }
 
 
@@ -99,6 +117,13 @@ namespace MockOrleans
                 return source.Task;
             }
         }
+
+
+
+        void IDisposable.Dispose() {
+            _smActive.Dispose();
+        }
+
 
     }
 

@@ -82,6 +82,7 @@
     <Compile Include="GrainTests.cs" />
     <Compile Include="IntegrationTests.cs" />
     <Compile Include="ReminderTests.cs" />
+    <Compile Include="RequestRunnerTests.cs" />
     <Compile Include="Sandbox.cs" />
     <Compile Include="SchedulerTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

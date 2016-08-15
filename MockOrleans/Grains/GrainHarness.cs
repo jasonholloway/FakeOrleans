@@ -42,7 +42,7 @@ namespace MockOrleans.Grains
             Exceptions = new ExceptionSink(fx.Exceptions);
             Scheduler = new GrainTaskScheduler(fx.Scheduler, Exceptions);
             Serializer = new MockSerializer(new GrainContext(fx, this));
-            Requests = new RequestRunner(Scheduler, Exceptions, fx.Requests);
+            Requests = new RequestRunner(Scheduler, Exceptions, fx.Requests, !Spec.IsReentrant);
             Timers = new MockTimerRegistry(this);
             StreamReceivers = new StreamReceiverRegistry(Serializer);
         }
@@ -103,13 +103,9 @@ namespace MockOrleans.Grains
 
         #region IGrainEndpoint
         
-        //SemaphoreSlim _smActive = new SemaphoreSlim(1);
-
-        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn) {
-            bool isolate = !Spec.IsReentrant;
-            return Requests.Perform(fn, isolate);            
-        }
-        
+        public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn)
+            => Requests.Perform(fn);  //isolation to default
+                
         public Task Invoke(Func<Task> fn)
             => Invoke(() => fn().Box());
 
