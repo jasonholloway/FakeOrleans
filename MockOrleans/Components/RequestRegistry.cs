@@ -92,14 +92,14 @@ namespace MockOrleans
 
             task.Start(_scheduler);
 
-            return await  task.Unwrap()
+            return await task.Unwrap()
                             .ContinueWith(t => {
                                 if(isolate) _smActive.Release();
 
                                 Decrement();
                         
                                 if(t.IsFaulted) throw t.Exception;
-                                else return t.Result;             
+                                else return t.Result; //problem is in returning void
                             }, _scheduler);
         }
 

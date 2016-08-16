@@ -60,14 +60,37 @@ namespace MockOrleans.Grains
         Task _tActivating = null;
         public volatile bool IsDead = false;
 
+        SemaphoreSlim _smActivating = new SemaphoreSlim(1);
 
+        
         public async Task Activate() 
-        {            
-            if(_tActivating == null) {  //failures should reset tActivating to null
-                _tActivating = Requests.Perform(ActivateGrain, true);   //and exceptions? returning them here seems reasonable
-            }                                                           //though tActivating needs to revert to null 
-                                                                        //Requests.Perform also packages errors...
-            await _tActivating;
+        {
+            await _smActivating.WaitAsync();
+
+            Task tActivating;
+
+            try {                
+                if(_tActivating == null) {
+                    _tActivating = Requests.Perform(ActivateGrain, true);  //exceptions should be sinked... and the caller will just get 'can't get activation'
+
+                    _tActivating.ContinueWith(t => {
+                        _tActivating = null;
+                    }, TaskContinuationOptions.NotOnRanToCompletion).Ignore();
+                }
+
+                tActivating = _tActivating;
+            }
+            finally {
+                _smActivating.Release();
+            }
+            
+            await tActivating;
+        }
+
+
+
+        async Task ActivateGrain() {
+            Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
         }
 
 
@@ -82,10 +105,6 @@ namespace MockOrleans.Grains
 
 
 
-
-        async Task ActivateGrain() {
-            Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
-        }
 
 
         async Task DeactivateGrain() 
