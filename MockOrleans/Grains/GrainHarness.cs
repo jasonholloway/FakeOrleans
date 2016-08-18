@@ -71,7 +71,7 @@ namespace MockOrleans.Grains
 
             try {                
                 if(_tActivating == null) {
-                    _tActivating = Requests.Perform(ActivateGrain, true);  //exceptions should be sinked... and the caller will just get 'can't get activation'
+                    _tActivating = Requests.Perform(ActivateInner, true);  //exceptions should be sinked... and the caller will just get 'can't get activation'
 
                     _tActivating.ContinueWith(t => {
                         _tActivating = null;
@@ -89,32 +89,29 @@ namespace MockOrleans.Grains
 
 
 
-        async Task ActivateGrain() {
+        async Task ActivateInner() {
             Grain = await GrainActivator.Activate(this, Placement, Fixture.Stores[Placement.Key]);
         }
 
 
 
-        public async Task Deactivate() 
+        public Task Deactivate()
+            => Requests.WhenIdle()  //would be even better if we could tell the runner to run our arbitrary code and immediately close on idleness
+                    .ContinueWith(_ => Requests.Perform(DeactivateInner, true), Scheduler);
+
+
+
+
+
+
+        async Task DeactivateInner() 
         {
             IsDead = true; //should stop further requests being queued... TO DO
-
-            await Requests.Perform(DeactivateGrain, true);
-        }
-
-
-
-
-
-
-        async Task DeactivateGrain() 
-        {
+                            //and subsequent placement resolutions will barf
+                           
             Timers.Clear(); //timers will themselves raise interleavable requests, and so will be muffled by IsDead
 
-            await ((Grain)Grain).OnDeactivateAsync();
-
-            _tActivating = null; 
-            Grain = null;
+            await ((Grain)Grain).OnDeactivateAsync();            
         }
 
         

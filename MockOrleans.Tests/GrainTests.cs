@@ -193,6 +193,10 @@ namespace MockOrleans.Tests
         }
 
 
+
+
+        volatile bool _fireFlak;
+
         [Test]
         public async Task DeactivationReactivationCompetition() 
         {
@@ -202,16 +206,44 @@ namespace MockOrleans.Tests
             var recorder = fx.Services.Inject(new ActivationRecorder());
 
             var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
+
+            //should fire loads of empty requests 
+            //at the grain while the below loop
+            //sandblasting - eventually, one will sneak in and malfunction
+
+            _fireFlak = true;
             
-            for(int i = 0; i < 10; i++) {
+            var tFlak = Task.Run(async () => {
+                while(_fireFlak) {
+                    await Enumerable.Range(0, 20)
+                                .Select(_ => grain.Reactivate())
+                                .WhenAll();
+                }
+            });
+
+            for(int i = 0; i < 100; i++) {
                 await grain.PrecipitateDeactivation();
                 await grain.Reactivate();
             }
             
+            _fireFlak = false;
+            await tFlak;
+            
             await fx.Requests.WhenIdle();
 
-            Assert.That(recorder.Activations, Has.Count.EqualTo(11));
-            Assert.That(recorder.Deactivations, Has.Count.EqualTo(10));
+            fx.Exceptions.Rethrow();
+
+            Assert.That(recorder.Activations, Has.Count.EqualTo(101));
+            Assert.That(recorder.Deactivations, Has.Count.EqualTo(100));
+
+            //Loads of deactivations - far too few reactivations. How?
+            //Far too few activations - but only when there's flak
+
+            //so, it works when everthing's in sequence
+            //but clogging it causes strange behaviour
+            //deactivations are firing repeatedly ***
+            //
+
         }
 
                 
@@ -240,6 +272,7 @@ namespace MockOrleans.Tests
         {
             public ConcurrentBag<IGrain> Activations = new ConcurrentBag<IGrain>();
             public ConcurrentBag<IGrain> Deactivations = new ConcurrentBag<IGrain>();
+            public ConcurrentBag<IGrain> Calls = new ConcurrentBag<IGrain>();
         }
         
         
@@ -260,6 +293,7 @@ namespace MockOrleans.Tests
             }
             
             public Task Reactivate() {
+                _recorder.Calls.Add(this.CastAs<IReactivatable>());
                 return Task.CompletedTask;
             }
 

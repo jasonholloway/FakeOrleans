@@ -66,7 +66,7 @@
     <Compile Include="Bits\VoidType.cs" />
     <Compile Include="Components\ExceptionSink.cs" />
     <Compile Include="Components\FixtureScheduler.cs" />
-    <Compile Include="Components\RequestRegistry.cs" />
+    <Compile Include="Components\RequestRunner.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />
     <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />

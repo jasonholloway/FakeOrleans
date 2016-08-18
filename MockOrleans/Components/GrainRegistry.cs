@@ -116,9 +116,14 @@ namespace MockOrleans
 
         public async Task<GrainHarness> GetActivation(GrainPlacement placement) 
         {
-            var harness = _dActivations.GetOrAdd(placement, p => new GrainHarness(Fixture, p));
-            
-            await harness.Activate();
+            //below isn't foolproof - dying activation may be returned
+            var harness = _dActivations.AddOrUpdate(
+                                            placement,
+                                            p => new GrainHarness(Fixture, p),
+                                            (p, h) => h.IsDead ? new GrainHarness(Fixture, p) : h);
+
+
+            await harness.Activate(); //but if dying? No problem, will sail through - problem is only assailable at point of Request.Perform - ie later
 
             return harness;
         }
