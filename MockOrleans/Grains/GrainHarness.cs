@@ -71,7 +71,7 @@ namespace MockOrleans.Grains
 
             try {                
                 if(_tActivating == null) {
-                    _tActivating = Requests.Perform(ActivateInner, true);  //exceptions should be sinked... and the caller will just get 'can't get activation'
+                    _tActivating = Requests.Perform(ActivateInner, RequestMode.Isolated);  //exceptions should be sinked... and the caller will just get 'can't get activation'
 
                     _tActivating.ContinueWith(t => {
                         _tActivating = null;
@@ -95,9 +95,10 @@ namespace MockOrleans.Grains
 
 
 
-        public Task Deactivate()
-            => Requests.WhenIdle()  //would be even better if we could tell the runner to run our arbitrary code and immediately close on idleness
-                    .ContinueWith(_ => Requests.Perform(DeactivateInner, true), Scheduler);
+        public Task Deactivate() {
+            Requests.CloseAndPerform(DeactivateInner);
+            return Task.CompletedTask; //!!!!!!!!
+        }
 
 
 

@@ -8,61 +8,133 @@ using System.Threading.Tasks;
 namespace MockOrleans
 {
 
+    public enum RequestMode
+    {
+        Unspecified,
+        Isolated,
+        Reentrant
+    }
+
+
     public class RequestRunner : IDisposable
     {
         TaskScheduler _scheduler;
         ExceptionSink _exceptionSink;
         RequestRunner _innerReqs;
         int _count;
-        Queue<TaskCompletionSource<bool>> _waitingTaskSources;
+        Queue<TaskCompletionSource<bool>> _whenIdleTaskSources;
+        Queue<TaskCompletionSource<bool>> _whenAloneTaskSources;
         object _sync = new object();
 
         bool _defaultIsolation = false;
-        volatile bool _currentEnforcesIsolation = false;
+
         volatile bool _disposed = false;
+
+
+        enum Mode
+        {
+            Active,
+            Closing,
+            Closed
+        }
+        
+
+
+        volatile Mode _mode = Mode.Active;
+        Func<Task<VoidType>> _fnOnClose;
+
+
 
 
         public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner innerReqs = null, bool isolate = false) {
             _scheduler = scheduler;
             _exceptionSink = exceptionSink;
             _innerReqs = innerReqs;
-            _waitingTaskSources = new Queue<TaskCompletionSource<bool>>();
+            _whenIdleTaskSources = new Queue<TaskCompletionSource<bool>>();
+            _whenAloneTaskSources = new Queue<TaskCompletionSource<bool>>();
             _defaultIsolation = isolate;
         }
 
 
-        void Increment(bool isFinal = false) {            
+        void Enter(bool isDeactivation = false) {            
             lock(_sync) {
-                if(!isFinal && _closed) throw new InvalidOperationException("RequestRunner is closed!");
+                if(!isDeactivation && _mode == Mode.Closed) throw new InvalidOperationException("RequestRunner is closed!");
 
                 _count++;
             }
 
-            _innerReqs?.Increment();
+            _innerReqs?.Enter();
         }
 
-        //Not convinced by below
-        void Decrement() {
+
+
+
+        object _innerSync = new object();
+        volatile int _innerCount;
+
+        void EnterInner() {
+            lock(_innerSync) {
+                _innerCount++;
+            }
+        }
+
+        void LeaveInner() {
             Queue<TaskCompletionSource<bool>> capturedTaskSources = null;
-            
+
+            lock(_innerSync) {
+                _innerCount--;
+
+                if(_innerCount <= 1) {
+                    capturedTaskSources = Interlocked.Exchange(ref _whenAloneTaskSources, new Queue<TaskCompletionSource<bool>>());
+                }
+            }
+
+            capturedTaskSources?.ForEach(s => s.SetResult(true));
+        }
+
+        Task WhenLoneActive() {
+            lock(_innerSync) {
+                if(_innerCount <= 1) {
+                    return Task.CompletedTask;
+                }
+
+                var source = new TaskCompletionSource<bool>();
+                _whenAloneTaskSources.Enqueue(source);
+
+                return source.Task;
+            }
+        }
+
+
+
+
+
+
+        //Not convinced by below
+        void Leave() 
+        {
+            Queue<TaskCompletionSource<bool>> capturedTaskSources = null;
+            bool runDeactivation = false;
+
             lock(_sync) {
                 _count--;
                 
                 if(_count == 0) {
-                    if(_closed) {
-                        //now fire off deactivation via a request
-
-                        //parameterising the below is too much forcing of a public function:
-                        //its innards need decomposing...
-
-                        Perform(_fnOnClose, true, true); //scheduler already set - THIS WILL DEADLOCK! - it'll increment inline
-                    }                           
-                                                
-                    capturedTaskSources = Interlocked.Exchange(ref _waitingTaskSources, new Queue<TaskCompletionSource<bool>>());
+                    if(_mode == Mode.Closing) {  //!!! as soon as deactivation requested, closed should == true
+                        _mode = Mode.Closed;
+                        runDeactivation = true; //this allows sneak preview of idleness
+                    }
+                    else {
+                        capturedTaskSources = Interlocked.Exchange(ref _whenIdleTaskSources, new Queue<TaskCompletionSource<bool>>());
+                    }
                 }
             }
 
-            _innerReqs?.Decrement();
+            if(runDeactivation) {
+                PerformInner(_fnOnClose, RequestMode.Isolated, true);
+            }
+
+            _innerReqs?.Leave();
             capturedTaskSources?.ForEach(ts => ts.SetResult(true));
         }
 
@@ -71,75 +143,100 @@ namespace MockOrleans
         //...
 
 
-        public void PerformAndForget(Func<Task> fn, bool? isolate = null)
-            => Perform(fn, isolate)
+        public void PerformAndForget(Func<Task> fn, RequestMode reqMode = RequestMode.Unspecified)
+            => Perform(fn, reqMode)
                 .ContinueWith(t => {
                     _exceptionSink.Add(t.Exception); //will this duplicate exceptions?
                 }, TaskContinuationOptions.OnlyOnFaulted);
 
 
 
-        public Task Perform(Func<Task> fn, bool? isolate = null)
-            => Perform(async () => {
+        public Task Perform(Func<Task> fn, RequestMode reqMode = RequestMode.Unspecified)
+            => PerformInner(async () => {
                             await fn();
                             return default(VoidType);
-                        }, isolate);
+                        }, reqMode);
 
 
 
 
+        public void CloseAndPerform(Func<Task> fn = null) 
+        {
+            _fnOnClose = async () => {
+                await fn();
+                return default(VoidType);
+            };
 
-        volatile bool _closed = false;
-        Func<Task> _fnOnClose;
-
-        public void CloseAndPerform(Func<Task> fn = null) {
-            _closed = true;
-            _fnOnClose = fn;
+            bool runDeactivation = false;
 
             lock(_sync) {
                 if(_count == 0) {
-                    _fnOnClose?.Invoke(); //needs to be put on scheduler!!!!!
+                    _mode = Mode.Closed;
+                    runDeactivation = true;
                 }                
+                else {
+                    _mode = Mode.Closing;
+                }
             }
+            
+            if(runDeactivation) {
+                PerformInner(_fnOnClose, RequestMode.Isolated, true);
+            }
+
+            //should use TCS to communicate back when deactivation done
+            //...        
         }
 
-        
+
+
+
+        public Task<T> Perform<T>(Func<Task<T>> fn, RequestMode mode = RequestMode.Unspecified)
+            => PerformInner<T>(fn, mode, false);
+
+
+
 
 
         SemaphoreSlim _smActive = new SemaphoreSlim(1);
-
         
-        public async Task<T> Perform<T>(Func<Task<T>> fn, bool? isolateOverride = null, bool isFinal = false)   //if dead, throw exception - via dead flag, or disposal, or something
-        { 
-            bool isolateThisRequest = isolateOverride.HasValue ? isolateOverride.Value : _defaultIsolation;
+        async Task<T> PerformInner<T>(Func<Task<T>> fn, RequestMode mode, bool isDeactivation = false)
+        {
+            bool isolateThisRequest = mode == RequestMode.Isolated
+                                        || (mode == RequestMode.Unspecified && _defaultIsolation);
+
+            Enter(isDeactivation);
+            
+            await _smActive.WaitAsync(); //but isn't there a slight prob here...
+            EnterInner();               //a gap between truly becoming active and declaring yourself so throught he counter
+                                         //a req could enter here, just as another leaves, making all seem quiet                            
+                                         //but the only consumer of this info is protected 
+                                         
+            if(isolateThisRequest) {
+                await WhenLoneActive();       //problem is that we never get down to one, because there are many waiting
+            }                            //on the lock. Maybe we need a waiting count and an active count
+            else {                       //idleness is determined by waiting; being alone on actual activity
+                _smActive.Release();     //WhenAlone would therefore wait for zero on activity
+            }
+            
 
             var task = new Task<Task<T>>(fn);
-
-            Increment(isFinal);
-
-            if(isolateThisRequest || _currentEnforcesIsolation) {
-                await _smActive.WaitAsync();
-                if(!isolateThisRequest) _smActive.Release();
-            }
-
-            _currentEnforcesIsolation = isolateThisRequest || isFinal; //finalizing requests always enforce isolation - whether they like it or not
-
-            if(isFinal) _smActive.Dispose(); //will throw off all who come after us
 
             task.Start(_scheduler);
 
             return await task.Unwrap()
                             .ContinueWith(t => {
-                                if(isolateThisRequest && !isFinal) _smActive.Release();
+                                LeaveInner();
 
-                                Decrement();
+                                if(isolateThisRequest) _smActive.Release();
+
+                                Leave();
                         
                                 if(t.IsFaulted) throw t.Exception;
                                 else return t.Result; //problem is in returning void
                             }, _scheduler);
         }
 
-
+                
 
         public Task WhenIdle() {
             lock(_sync) {
@@ -148,7 +245,7 @@ namespace MockOrleans
                 }
                 
                 var source = new TaskCompletionSource<bool>();
-                _waitingTaskSources.Enqueue(source);
+                _whenIdleTaskSources.Enqueue(source);
 
                 return source.Task;
             }
