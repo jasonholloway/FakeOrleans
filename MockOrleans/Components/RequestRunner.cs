@@ -23,7 +23,7 @@ namespace MockOrleans
         RequestRunner _innerReqs;
         int _count;
         Queue<TaskCompletionSource<bool>> _whenIdleTaskSources;
-        Queue<TaskCompletionSource<bool>> _whenAloneTaskSources;
+        Queue<TaskCompletionSource<bool>> _whenInnerClearTaskSources;
         object _sync = new object();
 
         bool _defaultIsolation = false;
@@ -51,14 +51,14 @@ namespace MockOrleans
             _exceptionSink = exceptionSink;
             _innerReqs = innerReqs;
             _whenIdleTaskSources = new Queue<TaskCompletionSource<bool>>();
-            _whenAloneTaskSources = new Queue<TaskCompletionSource<bool>>();
+            _whenInnerClearTaskSources = new Queue<TaskCompletionSource<bool>>();
             _defaultIsolation = isolate;
         }
 
 
         void Enter(bool isDeactivation = false) {            
             lock(_sync) {
-                if(!isDeactivation && _mode == Mode.Closed) throw new InvalidOperationException("RequestRunner is closed!");
+                if(!isDeactivation && _mode != Mode.Active) throw new InvalidOperationException($"RequestRunner is {_mode}!");
 
                 _count++;
             }
@@ -85,21 +85,21 @@ namespace MockOrleans
                 _innerCount--;
 
                 if(_innerCount <= 1) {
-                    capturedTaskSources = Interlocked.Exchange(ref _whenAloneTaskSources, new Queue<TaskCompletionSource<bool>>());
+                    capturedTaskSources = Interlocked.Exchange(ref _whenInnerClearTaskSources, new Queue<TaskCompletionSource<bool>>());
                 }
             }
 
             capturedTaskSources?.ForEach(s => s.SetResult(true));
         }
 
-        Task WhenLoneActive() {
+        Task WhenInnerClear() {
             lock(_innerSync) {
                 if(_innerCount <= 1) {
                     return Task.CompletedTask;
                 }
 
                 var source = new TaskCompletionSource<bool>();
-                _whenAloneTaskSources.Enqueue(source);
+                _whenInnerClearTaskSources.Enqueue(source);
 
                 return source.Task;
             }
@@ -201,21 +201,20 @@ namespace MockOrleans
         
         async Task<T> PerformInner<T>(Func<Task<T>> fn, RequestMode mode, bool isDeactivation = false)
         {
-            bool isolateThisRequest = mode == RequestMode.Isolated
-                                        || (mode == RequestMode.Unspecified && _defaultIsolation);
+            bool isolated = mode == RequestMode.Isolated
+                            || (mode == RequestMode.Unspecified && _defaultIsolation);
 
             Enter(isDeactivation);
             
-            await _smActive.WaitAsync(); //but isn't there a slight prob here...
-            EnterInner();               //a gap between truly becoming active and declaring yourself so throught he counter
-                                         //a req could enter here, just as another leaves, making all seem quiet                            
-                                         //but the only consumer of this info is protected 
+            await _smActive.WaitAsync(); 
+
+            EnterInner();               
                                          
-            if(isolateThisRequest) {
-                await WhenLoneActive();       //problem is that we never get down to one, because there are many waiting
-            }                            //on the lock. Maybe we need a waiting count and an active count
-            else {                       //idleness is determined by waiting; being alone on actual activity
-                _smActive.Release();     //WhenAlone would therefore wait for zero on activity
+            if(isolated) {
+                await WhenInnerClear();
+            }                            
+            else {                       
+                _smActive.Release();     
             }
             
 
@@ -227,7 +226,7 @@ namespace MockOrleans
                             .ContinueWith(t => {
                                 LeaveInner();
 
-                                if(isolateThisRequest) _smActive.Release();
+                                if(isolated) _smActive.Release();
 
                                 Leave();
                         

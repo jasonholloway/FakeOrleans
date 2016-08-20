@@ -95,11 +95,13 @@ namespace MockOrleans.Tests
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
+
+            requests.CloseAndPerform(() => Task.Delay(50));
             
-            requests.CloseAndPerform(() => Task.CompletedTask);
-            
+            var task = requests.Perform(() => Task.CompletedTask);
+                        
             Assert.That(
-                () => requests.Perform(() => Task.CompletedTask),
+                () => task,
                 Throws.InvalidOperationException);
         }
 

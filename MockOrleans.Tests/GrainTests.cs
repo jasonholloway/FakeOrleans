@@ -206,11 +206,7 @@ namespace MockOrleans.Tests
             var recorder = fx.Services.Inject(new ActivationRecorder());
 
             var grain = fx.GrainFactory.GetGrain<IReactivatable>(Guid.NewGuid());
-
-            //should fire loads of empty requests 
-            //at the grain while the below loop
-            //sandblasting - eventually, one will sneak in and malfunction
-
+            
             _fireFlak = true;
             
             var tFlak = Task.Run(async () => {
@@ -235,15 +231,11 @@ namespace MockOrleans.Tests
 
             Assert.That(recorder.Activations, Has.Count.EqualTo(101));
             Assert.That(recorder.Deactivations, Has.Count.EqualTo(100));
-
-            //Loads of deactivations - far too few reactivations. How?
-            //Far too few activations - but only when there's flak
-
-            //so, it works when everthing's in sequence
-            //but clogging it causes strange behaviour
-            //deactivations are firing repeatedly ***
-            //
-
+            
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            //PROBLEM: GrainRegistry isn't catching exceptions and reactivating...
+            //... will probably want special exception to propagate, so as to be precisely catchable
+            
         }
 
                 
