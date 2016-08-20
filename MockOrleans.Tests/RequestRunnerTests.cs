@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static MockOrleans.Tests.ExceptionTests;
 
 namespace MockOrleans.Tests
 {
@@ -83,7 +84,7 @@ namespace MockOrleans.Tests
             }, RequestMode.Isolated);
             
             await requests.WhenIdle();
-            exceptions.Rethrow();
+            exceptions.RethrowAll();
 
             Assert.That(clashed, Is.False);
         }
@@ -106,7 +107,7 @@ namespace MockOrleans.Tests
         }
 
 
-
+        
         [Test]
         public async Task WhenIdleWaitsForCompletionOfDeactivation() 
         {
@@ -121,7 +122,7 @@ namespace MockOrleans.Tests
             });
 
             await requests.WhenIdle();
-            exceptions.Rethrow();
+            exceptions.RethrowAll();
 
             Assert.That(closed, Is.True);
         }
@@ -143,7 +144,7 @@ namespace MockOrleans.Tests
             });
 
             await requests.WhenIdle();
-            exceptions.Rethrow();
+            exceptions.RethrowAll();
 
             Assert.That(closed, Is.True);
         }
@@ -163,7 +164,7 @@ namespace MockOrleans.Tests
             });
 
             await requests.WhenIdle();
-            exceptions.Rethrow();
+            exceptions.RethrowAll();
 
             Assert.That(closed, Is.True);
         }
@@ -191,8 +192,30 @@ namespace MockOrleans.Tests
                 });
             
             await requests.WhenIdle();
-            exceptions.Rethrow();
+            exceptions.RethrowAll();
         }
+
+
+
+        [Test]
+        public async Task DeactivationExceptionSinked() 
+        {
+            var exceptions = new ExceptionSink();
+            var requests = new RequestRunner(TaskScheduler.Default, exceptions);
+            
+            requests.CloseAndPerform(() => {
+                throw new TestException();
+            });
+
+            await requests.WhenIdle();
+
+            Assert.That(
+                () => exceptions.RethrowAll(), 
+                Throws.InnerException.InstanceOf<TestException>());            
+        }
+
+
+
 
 
     }

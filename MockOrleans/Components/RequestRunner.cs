@@ -58,7 +58,7 @@ namespace MockOrleans
 
         void Enter(bool isDeactivation = false) {            
             lock(_sync) {
-                if(!isDeactivation && _mode != Mode.Active) throw new InvalidOperationException($"RequestRunner is {_mode}!");
+                if(!isDeactivation && _mode == Mode.Closed) throw new InvalidOperationException($"RequestRunner is {_mode}!");
 
                 _count++;
             }
@@ -131,7 +131,8 @@ namespace MockOrleans
             }
 
             if(runDeactivation) {
-                PerformInner(_fnOnClose, RequestMode.Isolated, true);
+                PerformInner(_fnOnClose, RequestMode.Isolated, true)
+                    .SinkExceptions(_exceptionSink);
             }
 
             _innerReqs?.Leave();
@@ -180,7 +181,8 @@ namespace MockOrleans
             }
             
             if(runDeactivation) {
-                PerformInner(_fnOnClose, RequestMode.Isolated, true);
+                PerformInner(_fnOnClose, RequestMode.Isolated, true)
+                    .SinkExceptions(_exceptionSink);
             }
 
             //should use TCS to communicate back when deactivation done
@@ -216,23 +218,33 @@ namespace MockOrleans
             else {                       
                 _smActive.Release();     
             }
-            
+
+
+            TaskCompletionSource<T> _return = new TaskCompletionSource<T>();
 
             var task = new Task<Task<T>>(fn);
 
             task.Start(_scheduler);
 
-            return await task.Unwrap()
-                            .ContinueWith(t => {
-                                LeaveInner();
+            task.Unwrap()
+                .ContinueWith(t => {
+                    LeaveInner();
 
-                                if(isolated) _smActive.Release();
+                    if(isolated) _smActive.Release();
 
-                                Leave();
-                        
-                                if(t.IsFaulted) throw t.Exception;
-                                else return t.Result; //problem is in returning void
-                            }, _scheduler);
+                    if(t.IsFaulted) {
+                        _return.SetException(t.Exception);
+                    }
+                    else {
+                        _return.SetResult(t.Result);
+                    }
+
+                    Leave(); 
+                             
+                }, _scheduler)
+                .SinkExceptions(_exceptionSink);
+
+            return await _return.Task;
         }
 
                 

@@ -227,7 +227,7 @@ namespace MockOrleans.Tests
             
             await fx.Requests.WhenIdle();
 
-            fx.Exceptions.Rethrow();
+            fx.Exceptions.RethrowAll();
 
             Assert.That(recorder.Activations, Has.Count.EqualTo(101));
             Assert.That(recorder.Deactivations, Has.Count.EqualTo(100));
@@ -236,6 +236,12 @@ namespace MockOrleans.Tests
             //PROBLEM: GrainRegistry isn't catching exceptions and reactivating...
             //... will probably want special exception to propagate, so as to be precisely catchable
             
+            //But duplicates are bad and better avoided - over-eager deactivation and therefore rejection
+            //of incoming messages to be minimised, therefore. 
+            //
+            //Deactivation should only occur WHEN CLOSED, rather than on closing.
+
+
         }
 
                 

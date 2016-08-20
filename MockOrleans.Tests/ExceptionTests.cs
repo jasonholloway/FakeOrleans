@@ -12,7 +12,7 @@ namespace MockOrleans.Tests
     [TestFixture]
     public class ExceptionTests
     {
-
+        
         [Test]
         public void InRequestExceptionsReturnedToCallerNotSinked() 
         {
@@ -23,7 +23,7 @@ namespace MockOrleans.Tests
             
             Assert.That(() => grain.ThrowException(), Throws.Exception.InstanceOf<TestException>());
             
-            Assert.That(() => fx.Exceptions.Rethrow(), Throws.Nothing); //should be no sinked exceptions - packed and handled above
+            Assert.That(() => fx.Exceptions.RethrowAll(), Throws.Nothing); //should be no sinked exceptions - packed and handled above
         }
         
 
@@ -40,7 +40,7 @@ namespace MockOrleans.Tests
             await fx.Requests.WhenIdle();
             await fx.Scheduler.WhenIdle();
 
-            new Action(() => fx.Exceptions.Rethrow())
+            new Action(() => fx.Exceptions.RethrowAll())
                         .ShouldThrow<TestException>();            
         }
 

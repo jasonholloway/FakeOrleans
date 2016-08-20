@@ -19,18 +19,33 @@ namespace MockOrleans
         }
 
 
-        internal void Add(Exception ex) {
+        internal void Add(Exception ex) {            
             _exceptions.Enqueue(ex);
             _inner?.Add(ex);
         }
-                       
-        public void Rethrow() {            
+         
+        
+        public Exception[] All {
+            get { return _exceptions.ToArray(); }
+        }
+        
+                      
+        public void RethrowAll() {            
             var captured = _exceptions.ToArray();
 
             if(captured.Any()) {
-                throw new AggregateException(captured);
+                throw new AggregateException(captured).Flatten();
             }
         }
         
     }
+
+
+    public static class TaskExtensions
+    {
+        public static void SinkExceptions(this Task task, ExceptionSink sink)
+            => task.ContinueWith(t => sink.Add(t.Exception), TaskContinuationOptions.OnlyOnFaulted);
+        
+    }
+
 }
