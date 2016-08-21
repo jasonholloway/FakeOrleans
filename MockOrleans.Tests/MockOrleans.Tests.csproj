@@ -79,6 +79,7 @@
   <ItemGroup>
     <Compile Include="ActivationTests.cs" />
     <Compile Include="ExceptionTests.cs" />
+    <Compile Include="GrainDispatcherTests.cs" />
     <Compile Include="GrainTests.cs" />
     <Compile Include="IntegrationTests.cs" />
     <Compile Include="ReminderTests.cs" />
