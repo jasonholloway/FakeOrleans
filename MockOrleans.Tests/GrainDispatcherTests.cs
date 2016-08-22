@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MockOrleans.Tests
@@ -39,75 +40,131 @@ namespace MockOrleans.Tests
     {
         readonly IActivationProvider _actProv;
 
+        IActivation _act = null;
+        object _sync = new object();
+        
         public ActivationSite(IActivationProvider actProv) {
             _actProv = actProv;
         }
+                
+        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn) 
+        {
+            IActivation act = null;
 
-        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn) {
-            var act = _actProv.GetActivation();
-            return act.Perform(fn);
+            lock(_sync) {
+                act = _act ?? (_act = _actProv.GetActivation());
+            }
+            
+            try {
+                return act.Perform(fn);
+            }
+            catch(DeactivatedException) {
+                lock(_sync) _act = null;
+                return Dispatch(fn);
+            }
         }
+        
     }
-
-
-
-    public class TestGrain : Grain, IGrainWithGuidKey { }
-
-
+    
 
     [TestFixture]
-    public class GrainDispatcherTests
+    public class ActivationSiteTests
     {
 
-        Func<IActivation, Task<bool>> _fn = g => Task.FromResult(true);
+        Func<IActivation, Task<Guid>> _fn = g => Task.FromResult(Guid.Empty);
 
 
         [Test]
         public async Task DispatchesToActivation() 
         {
+            var guid = Guid.NewGuid();
+
             var activation = Substitute.For<IActivation>();
-            activation.Perform(Arg.Is(_fn)).Returns(true);
-            
+            activation.Perform(Arg.Is(_fn)).Returns(guid);
+
             var actProv = Substitute.For<IActivationProvider>();
             actProv.GetActivation().Returns(activation);
-            
+
             var site = new ActivationSite(actProv);
 
             var result = await site.Dispatch(_fn);
-            
-            Assert.That(result, Is.True);
+
+            Assert.That(result, Is.EqualTo(guid));
         }
 
         
+        
+        [Test]
+        public async Task ReactivatesWhenDeactivatedFound() 
+        {
+            var guid = Guid.NewGuid();
+
+            var deadActivation = Substitute.For<IActivation>();
+            deadActivation
+                .When(x => x.Perform(Arg.Is(_fn)))
+                .Do(_ => { throw new DeactivatedException(); });
+
+            var goodActivation = Substitute.For<IActivation>();
+            goodActivation.Perform(Arg.Is(_fn)).Returns(guid);
+
+            var actProv = Substitute.For<IActivationProvider>();
+            actProv.GetActivation().Returns(deadActivation, goodActivation);
+
+            var site = new ActivationSite(actProv);
+
+            var result = await site.Dispatch(_fn);
+
+            Assert.That(result, Is.EqualTo(guid));
+        }
 
 
 
 
-        //[Test]
-        //public async Task ReactivatesWhenDeactivatedFound() 
-        //{
-        //    var activation1 = Substitute.For<IActivation>();
+        [Test]
+        public async Task SameActivationUsedIfGood() 
+        {            
+            var actProv = Substitute.For<IActivationProvider>();
 
-        //    activation1
-        //        .When(x => x.Perform(Arg.Is(_fn)))
-        //        .Do(x => { throw new DeactivatedException(); });
+            actProv.GetActivation().Returns(_ => {
+                var activation = Substitute.For<IActivation>();
+                activation.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
+                return activation;
+            });
+
+            var site = new ActivationSite(actProv);
+
+            var result1 =  await site.Dispatch(_fn);
+            var result2 = await site.Dispatch(_fn);
             
+            Assert.That(result1, Is.EqualTo(result2));
+        }
 
-        //    var activation2 = Substitute.For<IActivation>();
-        //    activation2.Perform(Arg.Is(_fn)).Returns(true);
+
+
+
+
+        [Test]
+        public async Task ReactivatesOneAtATimeViaLock() 
+        {
+            var actProv = Substitute.For<IActivationProvider>();
+
+            actProv.GetActivation().Returns(_ => {
+                var activation = Substitute.For<IActivation>();
+                activation.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
+                return activation;
+            });
+
+            var site = new ActivationSite(actProv);
             
-                        
-        //    var site = Substitute.For<IActivationSite>();
-        //    site.GetActivation().Returns(activation1);
+            var results = await Enumerable.Range(0, 1000)
+                                    .Select(async _ => {
+                                        await Task.Delay(15);
+                                        return await site.Dispatch(_fn);
+                                        })
+                                    .WhenAll();
 
-        //    var result = await GrainDispatcher.Dispatch(site, _fn);
-
-        //    Assert.That(result, Is.True);
-        //}
-
-
-
-
+            Assert.That(results, Is.All.EqualTo(results.First()));
+        }
 
 
 
