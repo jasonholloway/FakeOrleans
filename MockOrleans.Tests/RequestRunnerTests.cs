@@ -97,7 +97,7 @@ namespace MockOrleans.Tests
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
 
-            requests.CloseAndPerform(() => Task.Delay(50));
+            requests.PerformAndClose(() => Task.Delay(50));
             
             var task = requests.Perform(() => Task.CompletedTask);
                         
@@ -116,7 +116,7 @@ namespace MockOrleans.Tests
             
             bool closed = false;
             
-            requests.CloseAndPerform(async () => {
+            requests.PerformAndClose(async () => {
                 await Task.Delay(100);
                 closed = true;
             });
@@ -138,7 +138,7 @@ namespace MockOrleans.Tests
 
             requests.PerformAndForget(() => Task.Delay(50));
             
-            requests.CloseAndPerform(() => {
+            requests.PerformAndClose(() => {
                 closed = true;
                 return Task.CompletedTask;
             });
@@ -158,7 +158,7 @@ namespace MockOrleans.Tests
             
             bool closed = false;
             
-            requests.CloseAndPerform(() => {
+            requests.PerformAndClose(() => {
                 closed = true;
                 return Task.CompletedTask;
             });
@@ -186,7 +186,7 @@ namespace MockOrleans.Tests
                         }))
                         .ToArray();
             
-            requests.CloseAndPerform(() => {                
+            requests.PerformAndClose(() => {                
                     Assert.That(calls, Is.EqualTo(0));
                     return Task.CompletedTask;
                 });
@@ -203,7 +203,7 @@ namespace MockOrleans.Tests
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
             
-            requests.CloseAndPerform(() => {
+            requests.PerformAndClose(() => {
                 throw new TestException();
             });
 

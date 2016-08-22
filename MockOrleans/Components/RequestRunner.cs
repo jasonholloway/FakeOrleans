@@ -161,7 +161,7 @@ namespace MockOrleans
 
 
 
-        public void CloseAndPerform(Func<Task> fn = null) 
+        public void PerformAndClose(Func<Task> fn = null) 
         {
             _fnOnClose = async () => {
                 await fn();

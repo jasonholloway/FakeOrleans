@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Orleans;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +13,8 @@ namespace MockOrleans.Grains
 
     public interface IActivation
     {
-        Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn);
+        Grain Grain { get; }
+        Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
     }
 
 
@@ -25,7 +27,7 @@ namespace MockOrleans.Grains
 
     public interface IActivationSite
     {
-        Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn);
+        Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode);
     }
 
 
@@ -41,7 +43,7 @@ namespace MockOrleans.Grains
             _actProv = actProv;
         }
 
-        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn) {
+        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) {
             IActivation act = null;
 
             lock(_sync) {
@@ -49,11 +51,11 @@ namespace MockOrleans.Grains
             }
 
             try {
-                return act.Perform(fn);
+                return act.Perform(fn, mode);
             }
             catch(DeactivatedException) {
                 lock(_sync) _act = null;
-                return Dispatch(fn);
+                return Dispatch(fn, mode);
             }
         }
 

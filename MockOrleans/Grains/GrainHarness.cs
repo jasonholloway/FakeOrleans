@@ -57,9 +57,7 @@ namespace MockOrleans.Grains
         
         
 
-        Task _tActivating = null;
-        public volatile bool IsDead = false;
-
+        Task _tActivating = null;        
         SemaphoreSlim _smActivating = new SemaphoreSlim(1);
 
         
@@ -95,8 +93,8 @@ namespace MockOrleans.Grains
 
 
 
-        public Task Deactivate() {
-            Requests.CloseAndPerform(DeactivateInner);
+        public Task DeactivateWhenIdle() {
+            Requests.PerformAndClose(DeactivateInner);
             return Task.CompletedTask; //!!!!!!!!
         }
 
@@ -106,12 +104,8 @@ namespace MockOrleans.Grains
 
 
         async Task DeactivateInner() 
-        {
-            IsDead = true; //should stop further requests being queued... TO DO
-                            //and subsequent placement resolutions will barf
-                           
-            Timers.Clear(); //timers will themselves raise interleavable requests, and so will be muffled by IsDead
-
+        {                           
+            Timers.Clear();
             await ((Grain)Grain).OnDeactivateAsync();            
         }
 
@@ -193,7 +187,7 @@ namespace MockOrleans.Grains
         }
         
         void IGrainRuntime.DeactivateOnIdle(Grain grain) {
-            Requests.WhenIdle().ContinueWith(_ => Deactivate(), Scheduler);
+            Requests.WhenIdle().ContinueWith(_ => DeactivateWhenIdle(), Scheduler);
         }
 
         void IGrainRuntime.DelayDeactivation(Grain grain, TimeSpan timeSpan) {

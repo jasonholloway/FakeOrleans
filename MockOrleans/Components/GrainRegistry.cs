@@ -11,8 +11,7 @@ using System.Collections.ObjectModel;
 
 namespace MockOrleans
 {
-
-
+    
     public class GrainPlacement //stateless workers can use subtypes of this?
     {
         public readonly GrainKey Key;
@@ -89,6 +88,31 @@ namespace MockOrleans
             return await GetActivation(placement);
         }
 
+
+
+
+        //relying on exception-throwing on request queueing
+        //only works for request-queueing - what about arbitrary inspection?
+
+        //Get an activation - check a public property of activation
+        //but this flag could be switched whenever - we need to register a claim as soon as we can...
+        //we could, instead of getting an activation, make it so all interaction with the activation is via dispatch
+        //ie we never get hold of an activation, but just submit to it - these submissions must be rejected or accepted
+        //
+        //But at the level of the registry, activations must be kept in a dictionary. But if all accesses are to
+        //dispatch, then the mechanism of access has immediate feedback on the liveness of the intended grain.
+        //
+        //The dispatcher will receive a failure response (potentially by exception) and immediately know
+        //to reprovision an activation.
+        //
+        //this does though mean that the response may well be delayed, significantly so, even.
+        //
+        //Why would we though need a way to handle a real activation? To place listeners, maybe? 
+        //Many listeners will not sit on the grain itself, but on durable supporting infrastructure, and so will
+        //be unaffected by activation state - eg streams and storage.
+
+
+
         
 
         //GrainHarness GetHarness(GrainKey key) {
@@ -116,12 +140,11 @@ namespace MockOrleans
 
         public async Task<GrainHarness> GetActivation(GrainPlacement placement) 
         {
-            //below isn't foolproof - dying activation may be returned
             var harness = _dActivations.AddOrUpdate(
                                             placement,
                                             p => new GrainHarness(Fixture, p),
-                                            (p, h) => h.IsDead ? new GrainHarness(Fixture, p) : h);
-
+                                            (p, h) => /*h.IsDead*/ true ? new GrainHarness(Fixture, p) : h);
+            
 
             await harness.Activate(); //but if dying? No problem, will sail through - problem is only assailable at point of Request.Perform - ie later
 
@@ -151,7 +174,7 @@ namespace MockOrleans
 
             if(oldActivation != null) {
                 Fixture.Requests.Perform(async () => {
-                    await oldActivation.Deactivate();
+                    await oldActivation.DeactivateWhenIdle();
                     oldActivation.Dispose();
                 });
             }
@@ -169,7 +192,7 @@ namespace MockOrleans
             GrainHarness activation;
 
             if(_dActivations.TryRemove(placement, out activation)) {
-                await activation.Deactivate();
+                await activation.DeactivateWhenIdle();
                 activation.Dispose();
             }
         }
@@ -180,7 +203,7 @@ namespace MockOrleans
             var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
 
             await captured.Values.Select(async a => {
-                                            await a.Deactivate();
+                                            await a.DeactivateWhenIdle();
                                             a.Dispose();
                                         }).WhenAll();
         }

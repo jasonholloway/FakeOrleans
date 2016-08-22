@@ -193,6 +193,12 @@ namespace MockOrleans.Tests
         }
 
 
+        //as soon as deactivation begins (on idleness) - then the activation is dead
+        //but the proof of death is the attempt to queue a request.
+        //so - no IsDead prop, only exception raising to simplify
+        //handling of request should be done by GrainRegistry rather than GrainProxy
+
+
 
 
         volatile bool _fireFlak;
@@ -235,6 +241,9 @@ namespace MockOrleans.Tests
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             //PROBLEM: GrainRegistry isn't catching exceptions and reactivating...
             //... will probably want special exception to propagate, so as to be precisely catchable
+
+
+
             
             //But duplicates are bad and better avoided - over-eager deactivation and therefore rejection
             //of incoming messages to be minimised, therefore. 
