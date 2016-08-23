@@ -68,6 +68,7 @@
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\RequestRunner.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />
+    <Compile Include="Grains\Activation.cs" />
     <Compile Include="Grains\ActivationSite.cs" />
     <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />

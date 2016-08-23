@@ -12,65 +12,6 @@ using System.Threading.Tasks;
 
 namespace MockOrleans.Tests
 {
-
-    //will take IAc
-
-    public interface IGrainCreator
-    {
-        Task<Grain> Activate(IActivation act);
-    }
-
-
-    public interface IRequestRunner
-    {
-        Task Perform(Func<Task> fn, RequestMode mode);
-        Task<T> Perform<T>(Func<Task<T>> fn, RequestMode mode);
-        void PerformAndForget(Func<Task> fn, RequestMode mode);
-        void PerformAndClose(Func<Task> fn, RequestMode mode);
-        Task WhenIdle();
-    }
-
-
-
-
-    public class Activation : IActivation
-    {
-        readonly IGrainCreator _creator;
-        readonly IRequestRunner _runner;
-
-        public Activation(IGrainCreator creator, IRequestRunner runner) {
-            _creator = creator;
-            _runner = runner;
-        }
-        
-
-        Grain _grain = null;
-
-        public Grain Grain {
-            get { return _grain; }
-        }
-        
-
-        SemaphoreSlim _sm = new SemaphoreSlim(1);
-
-        public async Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
-        {
-            await _sm.WaitAsync();
-
-            try {
-                if(_grain == null) {
-                    _grain = await _runner.Perform(() => _creator.Activate(this), RequestMode.Isolated);
-                }
-            }
-            finally {
-                _sm.Release();
-            }
-            
-            return await _runner.Perform(() => fn(this), mode);
-        }
-    }
-
-
     [TestFixture]
     public class ActivationTests
     {

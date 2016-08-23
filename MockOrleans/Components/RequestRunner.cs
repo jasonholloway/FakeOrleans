@@ -8,6 +8,15 @@ using System.Threading.Tasks;
 namespace MockOrleans
 {
 
+    public interface IRequestRunner
+    {
+        Task<T> Perform<T>(Func<Task<T>> fn, RequestMode mode);
+        void PerformAndForget(Func<Task> fn, RequestMode mode);
+        void PerformAndClose(Func<Task> fn);
+        Task WhenIdle();
+    }
+
+
     public enum RequestMode
     {
         Unspecified,
@@ -16,7 +25,7 @@ namespace MockOrleans
     }
 
 
-    public class RequestRunner : IDisposable
+    public class RequestRunner : IRequestRunner, IDisposable
     {
         TaskScheduler _scheduler;
         ExceptionSink _exceptionSink;
@@ -145,11 +154,8 @@ namespace MockOrleans
 
 
         public void PerformAndForget(Func<Task> fn, RequestMode reqMode = RequestMode.Unspecified)
-            => Perform(fn, reqMode)
-                .ContinueWith(t => {
-                    _exceptionSink.Add(t.Exception); //will this duplicate exceptions?
-                }, TaskContinuationOptions.OnlyOnFaulted);
-
+            => Perform(fn, reqMode).SinkExceptions(_exceptionSink);
+        
 
 
         public Task Perform(Func<Task> fn, RequestMode reqMode = RequestMode.Unspecified)
