@@ -3,22 +3,26 @@ using NSubstitute;
 using NUnit.Framework;
 using Orleans;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MockOrleans.Tests
-{
+{    
 
 
-    public interface IActivationSiteFac
+
+    public interface IPlacer
     {
-        IActivationSite Create(GrainPlacement placement);
+
     }
+
     
     public interface IDispatcher
     {
+        Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn);
         Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<Grain, Task<TResult>> fn);
     }
 
@@ -27,17 +31,26 @@ namespace MockOrleans.Tests
 
     public class Dispatcher : IDispatcher
     {
-        readonly IActivationSiteFac _siteFac;
-        readonly Dictionary<GrainPlacement, IActivationSite> _dSites;
+        readonly IPlacer _placer;
+        readonly Func<GrainPlacement, IActivationSite> _siteFac;
+        readonly ConcurrentDictionary<GrainPlacement, IActivationSite> _dSites;
 
-        public Dispatcher(IActivationSiteFac siteFac) {
+        public Dispatcher(IPlacer placer, Func<GrainPlacement, IActivationSite> siteFac) {
+            _placer = placer;
             _siteFac = siteFac;
-            _dSites = new Dictionary<GrainPlacement, IActivationSite>();
+            _dSites = new ConcurrentDictionary<GrainPlacement, IActivationSite>();
         }
 
 
-        public Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<Grain, Task<TResult>> fn) {            
-            return Task.FromResult(default(TResult));
+        public Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<Grain, Task<TResult>> fn) 
+        {
+            var site = _dSites.GetOrAdd(placement, p => _siteFac(p));
+            
+            return site.Dispatch(a => fn(a.Grain), RequestMode.Unspecified);
+        }
+
+        public Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn) {
+            throw new NotImplementedException();
         }
 
     }
@@ -50,26 +63,27 @@ namespace MockOrleans.Tests
     public class DispatcherTests
     {
         GrainPlacement _placement;
-        IActivationSiteFac _siteFac;
+        Func<GrainPlacement, IActivationSite> _siteFac;
+        Dispatcher _disp;
 
 
         [SetUp]
         public void SetUp() {
             _placement = CreatePlacement();
-            _siteFac = Substitute.For<IActivationSiteFac>();
+
+            _siteFac = Substitute.For<Func<GrainPlacement, IActivationSite>>();
+            _siteFac(Arg.Any<GrainPlacement>()).Returns(_ => Substitute.For<IActivationSite>());
+
+            _disp = new Dispatcher(_siteFac);
         }
 
 
         [Test]
         public async Task DefersToFactoryToCreateSite() 
         {            
-            var disp = new Dispatcher(_siteFac);
-
-            var result = await disp.Dispatch(_placement, g => Task.FromResult(true));
+            await _disp.Dispatch(_placement, g => Task.FromResult(true));
             
-            _siteFac.Create(Arg.Is(_placement)).Received(1);
-
-            throw new NotImplementedException("above not working strangely...");
+            _siteFac.Received(1)(Arg.Is(_placement));            
         }
 
         
@@ -77,21 +91,61 @@ namespace MockOrleans.Tests
         [Test]
         public async Task CachesSiteWhenCreated() 
         {
-            var disp = new Dispatcher(_siteFac);
-
             for(int i = 0; i < 10; i++) {
-                await disp.Dispatch(_placement, g => Task.FromResult(true));
+                await _disp.Dispatch(_placement, g => Task.FromResult(true));
             }
 
-            _siteFac.Create(Arg.Is(_placement)).Received(1);
+            _siteFac.Received(1)(Arg.Is(_placement));            
+        }
 
-            throw new NotImplementedException("above not working strangely...");
+        
+        [Test]
+        public async Task DelegatesDispatchToSite() 
+        {
+            var site = Substitute.For<IActivationSite>();
+            _siteFac(Arg.Is(_placement)).Returns(site);
+
+            await _disp.Dispatch(_placement, g => Task.FromResult(true));
+            
+            await site.Received(1)
+                    .Dispatch(Arg.Any<Func<IActivation, Task<bool>>>(), Arg.Any<RequestMode>());            
         }
 
 
         [Test]
-        public async Task CreatesSingleSiteUnderRaceConditions() {
-            throw new NotImplementedException();
+        public async Task LeavesRequestModeUnspecified() 
+        {
+            var site = Substitute.For<IActivationSite>();
+            _siteFac(Arg.Is(_placement)).Returns(site);
+
+            await _disp.Dispatch(_placement, g => Task.FromResult(true));
+
+            await site.Received(1)
+                    .Dispatch(Arg.Any<Func<IActivation, Task<bool>>>(), Arg.Is(RequestMode.Unspecified));
+        }
+
+
+
+
+        [Test]
+        public async Task UsesSingleSiteUnderRaceConditions() 
+        {
+            var sites = new ConcurrentBag<IActivationSite>();
+
+            _siteFac(Arg.Is(_placement)).Returns(_ => {
+                                            var site = Substitute.For<IActivationSite>();
+                                            sites.Add(site);
+                                            return site;
+                                        });
+
+            await Enumerable.Range(0, 100)
+                    .Select(async _ => {
+                        await Task.Delay(15);
+                        await _disp.Dispatch(_placement, g => Task.FromResult(true));
+                    })
+                    .WhenAll();
+
+            Assert.That(sites.Count(s => s.ReceivedCalls().Any()), Is.EqualTo(1));
         }
 
 
