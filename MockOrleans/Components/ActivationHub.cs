@@ -10,18 +10,24 @@ using System.Threading.Tasks;
 namespace MockOrleans.Components
 {
 
+    public interface IGrainRegistry
+    {
+        Task DeactivateAll();
+    }
+
+
     public interface IPlacementDispatcher
     {
         Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<IActivation, Task<TResult>> fn);
     }
 
 
-    public class PlacementDispatcher : IPlacementDispatcher
+    public class ActivationHub : IPlacementDispatcher, IGrainRegistry
     {
         readonly Func<GrainPlacement, IActivationSite> _siteFac;
         readonly ConcurrentDictionary<GrainPlacement, IActivationSite> _dSites;
 
-        public PlacementDispatcher(Func<GrainPlacement, IActivationSite> siteFac) {
+        public ActivationHub(Func<GrainPlacement, IActivationSite> siteFac) {
             _siteFac = siteFac;
             _dSites = new ConcurrentDictionary<GrainPlacement, IActivationSite>();
         }
@@ -33,7 +39,8 @@ namespace MockOrleans.Components
             return site.Dispatch(fn, RequestMode.Unspecified);
         }
 
-        public Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn) {
+
+        public Task DeactivateAll() {
             throw new NotImplementedException();
         }
 

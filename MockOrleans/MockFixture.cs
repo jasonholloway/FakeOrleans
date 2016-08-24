@@ -50,7 +50,7 @@ namespace MockOrleans
             Providers = new ProviderRegistry(this);
 
             Grains = new GrainRegistry(this);
-            Dispatcher = new Dispatcher(null, new PlacementDispatcher(null));
+            Dispatcher = new Dispatcher(null, new ActivationHub(null));
             Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }
 

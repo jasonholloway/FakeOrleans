@@ -67,7 +67,7 @@
     <Compile Include="Components\Dispatcher.cs" />
     <Compile Include="Components\ExceptionSink.cs" />
     <Compile Include="Components\FixtureScheduler.cs" />
-    <Compile Include="Components\PlacementDispatcher.cs" />
+    <Compile Include="Components\ActivationHub.cs" />
     <Compile Include="Components\RequestRunner.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />
     <Compile Include="Grains\Activation.cs" />
@@ -105,7 +105,7 @@
     <Compile Include="Grains\MockGrainFactory.cs" />
     <Compile Include="Components\MockSerializer.cs" />
     <Compile Include="MockFixture.cs" />
-    <Compile Include="Components\GrainRegistry.cs" />
+    <Compile Include="Components\_GrainRegistry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Streams\StreamKey.cs" />
   </ItemGroup>

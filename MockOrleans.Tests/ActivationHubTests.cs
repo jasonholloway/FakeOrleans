@@ -14,11 +14,11 @@ namespace MockOrleans.Tests
 {    
     
     [TestFixture]
-    public class PlacementDispatcherTests
+    public class ActivationHubTests
     {
         GrainPlacement _placement;
         Func<GrainPlacement, IActivationSite> _siteFac;
-        PlacementDispatcher _disp;
+        ActivationHub _hub;
         
 
         [SetUp]
@@ -28,14 +28,14 @@ namespace MockOrleans.Tests
             _siteFac = Substitute.For<Func<GrainPlacement, IActivationSite>>();
             _siteFac(Arg.Any<GrainPlacement>()).Returns(_ => Substitute.For<IActivationSite>());
             
-            _disp = new PlacementDispatcher(_siteFac);
+            _hub = new ActivationHub(_siteFac);
         }
 
 
         [Test]
         public async Task DefersToFactoryToCreateSite() 
         {            
-            await _disp.Dispatch(_placement, g => Task.FromResult(true));
+            await _hub.Dispatch(_placement, g => Task.FromResult(true));
             
             _siteFac.Received(1)(Arg.Is(_placement));            
         }
@@ -45,7 +45,7 @@ namespace MockOrleans.Tests
         public async Task CachesSiteWhenCreated() 
         {
             for(int i = 0; i < 10; i++) {
-                await _disp.Dispatch(_placement, g => Task.FromResult(true));
+                await _hub.Dispatch(_placement, g => Task.FromResult(true));
             }
 
             _siteFac.Received(1)(Arg.Is(_placement));            
@@ -58,7 +58,7 @@ namespace MockOrleans.Tests
             var site = Substitute.For<IActivationSite>();
             _siteFac(Arg.Is(_placement)).Returns(site);
 
-            await _disp.Dispatch(_placement, g => Task.FromResult(true));
+            await _hub.Dispatch(_placement, g => Task.FromResult(true));
             
             await site.Received(1)
                     .Dispatch(Arg.Any<Func<IActivation, Task<bool>>>(), Arg.Any<RequestMode>());            
@@ -71,7 +71,7 @@ namespace MockOrleans.Tests
             var site = Substitute.For<IActivationSite>();
             _siteFac(Arg.Is(_placement)).Returns(site);
 
-            await _disp.Dispatch(_placement, g => Task.FromResult(true));
+            await _hub.Dispatch(_placement, g => Task.FromResult(true));
 
             await site.Received(1)
                     .Dispatch(Arg.Any<Func<IActivation, Task<bool>>>(), Arg.Is(RequestMode.Unspecified));
@@ -92,7 +92,7 @@ namespace MockOrleans.Tests
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
                         await Task.Delay(15);
-                        await _disp.Dispatch(_placement, g => Task.FromResult(true));
+                        await _hub.Dispatch(_placement, g => Task.FromResult(true));
                     })
                     .WhenAll();
 
