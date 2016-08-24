@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,15 @@ namespace MockOrleans.Grains
             return await _runner.Perform(() => fn(this), mode);
         }
     }
+
+
+    public static class ActivationExtensions
+    {
+        public static Task<TResult> Invoke<TResult>(this IActivation act, MethodInfo method, byte[][] argData) {
+            throw new NotImplementedException();
+        }
+    }
+
 
 
 

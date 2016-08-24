@@ -1,4 +1,5 @@
 ﻿using MockOrleans.Grains;
+using MockOrleans.Components;
 using Orleans;
 using Orleans.Runtime;
 using System;
@@ -68,14 +69,16 @@ namespace MockOrleans.Reminders
                                 }
 
                                 if(status != ReminderState.Cancelled) {
-                                    var endpoint = await _fx.Grains.GetGrainEndpoint(_key);
-                                    await endpoint.Invoke<IRemindable>(r => r.ReceiveReminder(_name, default(TickStatus)));                                    
+                                    await _fx.Dispatcher.Dispatch(_key, a => ((IRemindable)a.Grain).ReceiveReminder(_name, default(TickStatus)));
+
+                                    //var endpoint = await _fx.Grains.GetGrainEndpoint(_key);
+                                    //await endpoint.Invoke<IRemindable>(r => r.ReceiveReminder(_name, default(TickStatus)));                                    
                                 }
 
                             }, _fx.Scheduler)
                             .Unwrap();
 
-                _tasks.Enqueue(task); //non-important memory leak
+                _tasks.Enqueue(task); //non-drastic memory leak
             }
             finally {
                 _sm.Release();

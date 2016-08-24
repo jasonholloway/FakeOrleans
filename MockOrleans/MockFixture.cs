@@ -1,4 +1,5 @@
-﻿using MockOrleans.Grains;
+﻿using MockOrleans.Components;
+using MockOrleans.Grains;
 using MockOrleans.Reminders;
 using MockOrleans.Streams;
 using Orleans;
@@ -20,7 +21,7 @@ namespace MockOrleans
         
         public readonly TypeMap Types;
         public readonly MockSerializer Serializer;
-        public readonly GrainRegistry Grains;
+        //public readonly GrainRegistry Grains;
         public readonly ProviderRegistry Providers;
         public readonly ReminderRegistry Reminders;
         public readonly StorageRegistry Stores;
@@ -28,6 +29,8 @@ namespace MockOrleans
 
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
+        
+        public readonly IDispatcher Dispatcher;
 
 
 
@@ -41,14 +44,16 @@ namespace MockOrleans
             Types = new TypeMap(this);
             GrainFactory = new MockGrainFactory(this);
             Stores = new StorageRegistry(Serializer);
-            Grains = new GrainRegistry(this);
-            Streams = new StreamRegistry(Grains, Requests, Types);
+
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
+
+            Dispatcher = new Dispatcher(null, new PlacementDispatcher(null));
+            Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }
 
-        
-        
+
+
 
         public GrainProxy GetGrainProxy(ResolvedGrainKey key) {
             return GrainProxy.Proxify(this, key);

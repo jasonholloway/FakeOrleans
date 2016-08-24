@@ -1,4 +1,5 @@
-﻿using Orleans;
+﻿using MockOrleans.Grains;
+using Orleans;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ namespace MockOrleans.Components
 
     public interface IDispatcher
     {
-        Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn);
+        Task<TResult> Dispatch<TResult>(GrainKey key, Func<IActivation, Task<TResult>> fn);
     }
     
 
@@ -26,12 +27,23 @@ namespace MockOrleans.Components
         }
 
 
-        public Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn) {
+        public Task<TResult> Dispatch<TResult>(GrainKey key, Func<IActivation, Task<TResult>> fn) {
             var placement = _placer(key);
 
             return _innerDispatcher.Dispatch(placement, fn);
         }
 
     }
+
+
+
+
+    public static class DispatcherExtensions
+    {
+        public static Task Dispatch(this IDispatcher disp, GrainKey key, Func<IActivation, Task> fn)
+            => disp.Dispatch(key, async a => { await fn(a); return default(VoidType); });
+    }
+
+
 
 }

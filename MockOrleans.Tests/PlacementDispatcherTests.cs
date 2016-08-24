@@ -1,4 +1,5 @@
-﻿using MockOrleans.Grains;
+﻿using MockOrleans.Components;
+using MockOrleans.Grains;
 using NSubstitute;
 using NUnit.Framework;
 using Orleans;

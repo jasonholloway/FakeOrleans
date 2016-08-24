@@ -12,23 +12,6 @@ using System.Collections.ObjectModel;
 namespace MockOrleans
 {
     
-    public class GrainPlacement //stateless workers can use subtypes of this?
-    {
-        public readonly GrainKey Key;
-        internal readonly GrainRegistry Registry;
-        
-        public GrainPlacement(GrainKey key, GrainRegistry registry) {
-            Key = key;
-            Registry = registry;
-        }
-        
-        public override bool Equals(object obj)
-            => (obj as GrainPlacement)?.Key.Equals(Key) ?? false; //beware subtypes...
-
-        public override int GetHashCode()
-            => Key.GetHashCode();
-    }
-
 
 
     public static class GrainPlacementExtensions

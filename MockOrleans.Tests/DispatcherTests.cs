@@ -1,4 +1,5 @@
-﻿using MockOrleans.Grains;
+﻿using MockOrleans.Components;
+using MockOrleans.Grains;
 using NSubstitute;
 using NUnit.Framework;
 using Orleans;
@@ -21,7 +22,7 @@ namespace MockOrleans.Tests
         Func<GrainKey, GrainPlacement> _placer;
         IPlacementDispatcher _innerDisp;
         Dispatcher _disp;
-        Func<Grain, Task<bool>> _fn;
+        Func<IActivation, Task<bool>> _fn;
 
         [SetUp]
         public void SetUp() {
@@ -35,7 +36,7 @@ namespace MockOrleans.Tests
 
             _disp = new Dispatcher(_placer, _innerDisp);
 
-            _fn = g => Task.FromResult(true);
+            _fn = a => Task.FromResult(true);
         }
 
         

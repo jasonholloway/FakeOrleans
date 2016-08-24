@@ -52,9 +52,12 @@ namespace MockOrleans.Grains
                 argData[i] = Fixture.Serializer.Serialize(arg);
             }
             
-            return Fixture.Requests.Perform(async () => {
-                var endpoint = await Fixture.Grains.GetGrainEndpoint(Key);
-                return await endpoint.Invoke<TResult>(method, argData);
+            return Fixture.Requests.Perform(async () => { //would be nice if dispatcher used requestrunner itself...
+
+                return await Fixture.Dispatcher.Dispatch(Key, a => a.Invoke<TResult>(method, argData));
+
+                //var endpoint = await Fixture.Grains.GetGrainEndpoint(Key);
+                //return await endpoint.Invoke<TResult>(method, argData);
             });
         }
 
@@ -209,7 +212,7 @@ namespace MockOrleans.Grains
 
 
         public TGrain Grain {
-            get { return (TGrain)Fixture.Grains.GetActivation(Key).Result.GetGrain().Result; } //for debugging only!
+            get { return (TGrain)(object)Fixture.Dispatcher.Dispatch(Key, a => Task.FromResult(a.Grain)).Result; } //for debugging only!
         }
 
 

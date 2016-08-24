@@ -12,7 +12,7 @@ namespace MockOrleans.Components
 
     public interface IPlacementDispatcher
     {
-        Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<Grain, Task<TResult>> fn);
+        Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<IActivation, Task<TResult>> fn);
     }
 
 
@@ -27,10 +27,10 @@ namespace MockOrleans.Components
         }
 
 
-        public Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<Grain, Task<TResult>> fn) {
+        public Task<TResult> Dispatch<TResult>(GrainPlacement placement, Func<IActivation, Task<TResult>> fn) {
             var site = _dSites.GetOrAdd(placement, p => _siteFac(p));
 
-            return site.Dispatch(a => fn(a.Grain), RequestMode.Unspecified);
+            return site.Dispatch(fn, RequestMode.Unspecified);
         }
 
         public Task<TResult> Dispatch<TResult>(GrainKey key, Func<Grain, Task<TResult>> fn) {

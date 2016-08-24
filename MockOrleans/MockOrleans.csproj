@@ -79,6 +79,7 @@
     <Compile Include="Bits\Require.cs" />
     <Compile Include="Components\ProviderRegistry.cs" />
     <Compile Include="Components\StorageCell.cs" />
+    <Compile Include="Grains\GrainPlacement.cs" />
     <Compile Include="Grains\Streams\GrainStreamClient.cs" />
     <Compile Include="Grains\Streams\GrainStreamHandle.cs" />
     <Compile Include="Grains\Streams\StreamReceiverRegistry.cs" />

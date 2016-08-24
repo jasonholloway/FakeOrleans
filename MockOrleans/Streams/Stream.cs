@@ -1,4 +1,5 @@
-﻿using MockOrleans.Grains;
+﻿using MockOrleans.Components;
+using MockOrleans.Grains;
 using Orleans.Streams;
 using System;
 using System.Collections.Concurrent;
@@ -25,16 +26,16 @@ namespace MockOrleans.Streams
         public readonly StreamKey Key;
 
         StreamRegistry _streamReg;
-        GrainRegistry _grainReg;
+        IDispatcher _disp;
         RequestRunner _requests;
         ConcurrentDictionary<Guid, Subscription> _dSubscriptions;
 
 
-        public Stream(StreamKey key, StreamRegistry streamReg, GrainRegistry grainReg, RequestRunner requests)
+        public Stream(StreamKey key, StreamRegistry streamReg, IDispatcher disp, RequestRunner requests)
         {
             Key = key;
             _streamReg = streamReg;
-            _grainReg = grainReg;
+            _disp = disp;
             _requests = requests;
             _dSubscriptions = new ConcurrentDictionary<Guid, Subscription>();
         }
@@ -65,7 +66,7 @@ namespace MockOrleans.Streams
             
             var subKey = new SubKey(Key, Guid.NewGuid());
 
-            var subscription = new Subscription(subKey, grainKey, this, _grainReg, _requests, isImplicit);
+            var subscription = new Subscription(subKey, grainKey, this, _disp, _requests, isImplicit);
 
             _dSubscriptions[subKey.SubscriptionId] = subscription;
 
@@ -117,16 +118,16 @@ namespace MockOrleans.Streams
             public readonly SubKey Key;
             public readonly GrainKey GrainKey;
             public readonly Stream Stream;
-            public readonly GrainRegistry Grains;
+            public readonly IDispatcher Dispatcher;
             public readonly RequestRunner Requests;
             public readonly bool IsImplicit;
             
             
-            public Subscription(SubKey key, GrainKey grainKey, Stream stream, GrainRegistry grains, RequestRunner requests, bool isImplicit) {
+            public Subscription(SubKey key, GrainKey grainKey, Stream stream, IDispatcher disp, RequestRunner requests, bool isImplicit) {
                 Key = key;
                 GrainKey = grainKey;
                 Stream = stream;
-                Grains = grains;
+                Dispatcher = disp;
                 Requests = requests;
                 IsImplicit = isImplicit;
             }
@@ -144,13 +145,17 @@ namespace MockOrleans.Streams
 
             Task Perform(Func<IStreamSink, Task> fn) {
                 Requests.PerformAndForget(async () => {
-                    var activation = await Grains.GetActivation(GrainKey);
+                    //var activation = await Grains.GetActivation(GrainKey);
 
-                    var observer = activation.StreamReceivers.Find(Key);
+                    await Dispatcher.Dispatch(GrainKey, g => Task.FromResult(true)); //need to get observer from activation
 
-                    if(observer != null) {
-                        activation.Requests.PerformAndForget(() => fn(observer)); //should isolate with the activation default
-                    }
+                    //AND FORGET ABOVE!
+
+                    //var observer = activation.StreamReceivers.Find(Key);
+
+                    //if(observer != null) {
+                    //    activation.Requests.PerformAndForget(() => fn(observer)); //should isolate with the activation default
+                    //}
                 });
 
                 return Task.CompletedTask;
