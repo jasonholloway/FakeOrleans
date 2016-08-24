@@ -64,6 +64,7 @@
     <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
     <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
     <Compile Include="Bits\VoidType.cs" />
+    <Compile Include="Components\Dispatcher.cs" />
     <Compile Include="Components\ExceptionSink.cs" />
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\PlacementDispatcher.cs" />
