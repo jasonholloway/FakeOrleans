@@ -18,7 +18,7 @@ using MockOrleans.Streams;
 namespace MockOrleans.Grains
 {    
 
-    public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable
+    public class GrainHarness : IGrainEndpoint, IGrainRuntime, IDisposable, IActivation
     {
         public readonly MockFixture Fixture;
         public readonly GrainPlacement Placement;
@@ -109,11 +109,24 @@ namespace MockOrleans.Grains
             await ((Grain)Grain).OnDeactivateAsync();            
         }
 
-        
+
 
 
         #region IGrainEndpoint
-        
+
+
+
+        Task<TResult> IActivation.Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode)
+            => Requests.Perform(() => fn(this), mode);
+
+
+        StreamReceiverRegistry IActivation.Receivers {
+            get { return StreamReceivers; }
+        }
+
+
+
+
         public Task<TResult> Invoke<TResult>(Func<Task<TResult>> fn)
             => Requests.Perform(fn);  //isolation to default
                 
@@ -185,7 +198,13 @@ namespace MockOrleans.Grains
         IServiceProvider IGrainRuntime.ServiceProvider {
             get { return Fixture.Services; }
         }
-        
+
+        Grain IActivation.Grain {
+            get {
+                throw new NotImplementedException();
+            }
+        }
+
         void IGrainRuntime.DeactivateOnIdle(Grain grain) {
             Requests.WhenIdle().ContinueWith(_ => DeactivateWhenIdle(), Scheduler);
         }
@@ -222,7 +241,7 @@ namespace MockOrleans.Grains
         }
 
         #endregion
-        
+
     }
 
 

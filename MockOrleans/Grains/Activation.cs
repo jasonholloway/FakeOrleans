@@ -23,6 +23,7 @@ namespace MockOrleans.Grains
         public Activation(IGrainCreator creator, IRequestRunner runner) {
             _creator = creator;
             _runner = runner;
+            Receivers = new StreamReceiverRegistry(new MockSerializer(new GrainContext(null, this))); //!!!!!!!
         }
 
 
@@ -31,6 +32,10 @@ namespace MockOrleans.Grains
         public Grain Grain {
             get { return _grain; }
         }
+
+
+        public StreamReceiverRegistry Receivers { get; private set; }
+
 
 
         SemaphoreSlim _sm = new SemaphoreSlim(1);

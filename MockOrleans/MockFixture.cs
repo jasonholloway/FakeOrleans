@@ -21,7 +21,7 @@ namespace MockOrleans
         
         public readonly TypeMap Types;
         public readonly MockSerializer Serializer;
-        //public readonly GrainRegistry Grains;
+        
         public readonly ProviderRegistry Providers;
         public readonly ReminderRegistry Reminders;
         public readonly StorageRegistry Stores;
@@ -29,7 +29,8 @@ namespace MockOrleans
 
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
-        
+
+        public readonly GrainRegistry Grains;
         public readonly IDispatcher Dispatcher;
 
 
@@ -48,6 +49,7 @@ namespace MockOrleans
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
 
+            Grains = new GrainRegistry(this);
             Dispatcher = new Dispatcher(null, new PlacementDispatcher(null));
             Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }

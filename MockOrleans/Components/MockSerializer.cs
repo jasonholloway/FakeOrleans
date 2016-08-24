@@ -29,9 +29,9 @@ namespace MockOrleans
 
     public class GrainContext : FixtureContext
     {
-        public readonly GrainHarness Activation;
+        public readonly IActivation Activation;
 
-        public GrainContext(MockFixture fx, GrainHarness activation) 
+        public GrainContext(MockFixture fx, IActivation activation) 
             : base(fx) {
             Activation = activation;
         }

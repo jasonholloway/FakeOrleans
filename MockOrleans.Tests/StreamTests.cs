@@ -283,7 +283,8 @@ namespace MockOrleans.Tests
             
             var streamKey = new StreamKey("prov", "ns", Guid.NewGuid());
             var subKey = new Stream.SubKey(streamKey, Guid.NewGuid());
-            var activation = await fx.Grains.GetActivation<IDummy>(Guid.NewGuid());
+            
+            var activation = new Activation(null, null);
                         
             var serializer = new MockSerializer(new GrainContext(fx, activation));
             

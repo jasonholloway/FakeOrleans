@@ -84,6 +84,7 @@
     <Compile Include="ActivationSiteTests.cs" />
     <Compile Include="GrainTests.cs" />
     <Compile Include="IntegrationTests.cs" />
+    <Compile Include="PlacerTests.cs" />
     <Compile Include="ReminderTests.cs" />
     <Compile Include="RequestRunnerTests.cs" />
     <Compile Include="Sandbox.cs" />

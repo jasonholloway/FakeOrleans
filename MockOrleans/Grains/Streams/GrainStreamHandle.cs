@@ -17,9 +17,9 @@ namespace MockOrleans.Grains
         public readonly Stream.SubKey SubscriptionKey;
 
         readonly StreamRegistry _streamReg;
-        readonly GrainHarness _activation;
+        readonly IActivation _activation;
 
-        public GrainStreamHandle(Stream.SubKey subKey, GrainHarness activation, StreamRegistry streamReg) {
+        public GrainStreamHandle(Stream.SubKey subKey, IActivation activation, StreamRegistry streamReg) {
             SubscriptionKey = subKey;
             _activation = activation;
             _streamReg = streamReg;
@@ -46,7 +46,7 @@ namespace MockOrleans.Grains
 
         public override Task<StreamSubscriptionHandle<T>> ResumeAsync(IAsyncObserver<T> observer, StreamSequenceToken token = null) 
         {            
-            _activation.StreamReceivers.Register(SubscriptionKey, observer);
+            _activation.Receivers.Register(SubscriptionKey, observer);
             return Task.FromResult((StreamSubscriptionHandle<T>)this);
         }
 
@@ -56,7 +56,7 @@ namespace MockOrleans.Grains
 
             stream.Unsubscribe(SubscriptionKey);
             
-            _activation.StreamReceivers.Unregister(SubscriptionKey);
+            _activation.Receivers.Unregister(SubscriptionKey);
 
             return Task.CompletedTask;
         }

@@ -14,6 +14,8 @@ namespace MockOrleans.Grains
     public interface IActivation
     {
         Grain Grain { get; }
+        StreamReceiverRegistry Receivers { get; }
+
         Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
     }
 
