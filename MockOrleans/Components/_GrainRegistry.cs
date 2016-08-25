@@ -123,7 +123,7 @@ namespace MockOrleans
             GrainHarness activation;
 
             if(_dActivations.TryRemove(placement, out activation)) {
-                await activation.DeactivateWhenIdle();
+                await activation.Deactivate();
                 activation.Dispose();
             }
         }
@@ -134,7 +134,7 @@ namespace MockOrleans
             var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
 
             await captured.Values.Select(async a => {
-                                            await a.DeactivateWhenIdle();
+                                            await a.Deactivate();
                                             a.Dispose();
                                         }).WhenAll();
         }

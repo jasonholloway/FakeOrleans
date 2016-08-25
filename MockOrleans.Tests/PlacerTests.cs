@@ -1,5 +1,7 @@
-﻿using MockOrleans.Grains;
+﻿using MockOrleans.Components;
+using MockOrleans.Grains;
 using NUnit.Framework;
+using Orleans;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,33 +11,40 @@ using System.Threading.Tasks;
 namespace MockOrleans.Tests
 {
 
-    public class Placer : IPlacer
-    {
-        public GrainPlacement Place(GrainKey key) {
-            throw new NotImplementedException();
-        }
-    }
-
-
     [TestFixture]
-    public class PlacerTests
+    public class PlacerTests : TestFixtureBase
     {
 
-        Placer _placer;
+        IPlacer _placer;
+        GrainKey[] _keys;
+
+        Type[] _normGrainTypes = { typeof(TestGrain), typeof(TestGrain<int>), typeof(TestGrain<TestGrain<object>>) };
 
 
         [SetUp]
-        public void SetUp() {
+        public void SetUp() 
+        {            
+            _keys = Enumerable.Range(0, 100)
+                        .Select(i => new GrainKey(_normGrainTypes[i % _normGrainTypes.Length], Guid.NewGuid()))
+                        .ToArray();
+
             _placer = new Placer();
         }
 
-
-
+        
 
         [Test]
-        public async Task lklkjlkjlkj() {
-            throw new NotImplementedException();
+        public void PlacingNormalGrain_ReturnsSamePlacement() 
+        {
+            var resultSets = Enumerable.Range(0, 10)
+                                .Select(_ => _keys.Select(_placer.Place).ToArray())
+                                .ToArray();
+
+            resultSets.ForEach(r => {
+                Assert.That(r, Is.EqualTo(resultSets.First()));
+            });
         }
+
 
     }
 }

@@ -11,10 +11,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace MockOrleans.Tests
-{    
-    
+{   
+
     [TestFixture]
-    public class ActivationHubTests
+    public class ActivationHubTests : TestFixtureBase
     {
         GrainPlacement _placement;
         Func<GrainPlacement, IActivationSite> _siteFac;
@@ -100,12 +100,31 @@ namespace MockOrleans.Tests
         }
 
                 
+        [Test]
+        public async Task GetActivations_ReturnsAllCreatedActivations() 
+        {
+            var placements = Enumerable.Range(0, 100)
+                                .Select(_ => CreatePlacement())
+                                .ToArray();
 
-        public class TestGrain : Grain, IGrainWithGuidKey { }
+            var createdActs = await placements
+                                    .Select(p => _hub.Dispatch(p, a => Task.FromResult(a)))
+                                    .WhenAll();
+
+            var returnedActs = _hub.GetActivations();
+
+            Assert.That(returnedActs, Is.EquivalentTo(createdActs));            
+        }
 
 
-        GrainPlacement CreatePlacement()
-            => new GrainPlacement(new GrainKey(typeof(TestGrain), Guid.NewGuid()), null);
+        [Test]
+        public async Task GetActivations_DoesntReturnDeactivated() 
+        {
+            //...
 
+            throw new NotImplementedException();
+        }
+
+        
     }
 }

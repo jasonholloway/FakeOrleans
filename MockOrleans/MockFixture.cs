@@ -30,7 +30,7 @@ namespace MockOrleans
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
 
-        public readonly GrainRegistry Grains;
+        public readonly IGrainSet Grains;
         public readonly IDispatcher Dispatcher;
 
 
@@ -49,8 +49,12 @@ namespace MockOrleans
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
 
-            Grains = new GrainRegistry(this);
-            Dispatcher = new Dispatcher(null, new ActivationHub(null));
+
+            var hub = new ActivationHub(null);
+
+            Grains = hub;
+            Dispatcher = new Dispatcher(null, hub);
+
             Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }
 

@@ -93,13 +93,12 @@ namespace MockOrleans.Grains
 
 
 
-        public Task DeactivateWhenIdle() {
+        public Task Deactivate() {
             Requests.PerformAndClose(DeactivateInner);
             return Task.CompletedTask; //!!!!!!!!
         }
 
-
-
+        
 
 
 
@@ -206,7 +205,7 @@ namespace MockOrleans.Grains
         }
 
         void IGrainRuntime.DeactivateOnIdle(Grain grain) {
-            Requests.WhenIdle().ContinueWith(_ => DeactivateWhenIdle(), Scheduler);
+            Requests.WhenIdle().ContinueWith(_ => Deactivate(), Scheduler);
         }
 
         void IGrainRuntime.DelayDeactivation(Grain grain, TimeSpan timeSpan) {

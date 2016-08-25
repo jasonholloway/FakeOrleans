@@ -54,6 +54,12 @@ namespace MockOrleans.Grains
 
             return await _runner.Perform(() => fn(this), mode);
         }
+
+        public Task Deactivate() {
+            _runner.PerformAndClose(() => Grain.OnDeactivateAsync());
+            return Task.CompletedTask;
+        }
+
     }
 
 

@@ -15,127 +15,149 @@ namespace MockOrleans.Tests
     [TestFixture]
     public class ActivationTests
     {
+
+        #region etc
+
         IGrainCreator _creator;
         IRequestRunner _runner;
-
+        IActivation _activation;
+        Grain _grain;
+        Func<IActivation, Task<bool>> _fn;
         
         [SetUp]
-        public void SetUp() {
+        public void SetUp() { //our expectations of others - but what enforces others' real implementations to fulfil these? Integration testing, obvs.
+            _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
+            
             _creator = Substitute.For<IGrainCreator>();
+            _creator.Activate(Arg.Any<IActivation>()).Returns(_grain);
+            
             _runner = Substitute.For<IRequestRunner>();
+            _activation = new Activation(_creator, _runner);
+
+            _fn = Substitute.For<Func<IActivation, Task<bool>>>();
+
+            SetupRunner<Grain>();
+            SetupRunner<bool>();
         }
-
-
-        void SetupRunner<T>() {
+        
+        void SetupRunner<T>() 
+        {
             _runner.Perform(Arg.Any<Func<Task<T>>>(), Arg.Any<RequestMode>())
                     .Returns(x => {
                         var fn = x.ArgAt<Func<Task<T>>>(0);
                         return fn();
-                    });            
+                    });
+
+            _runner
+                .When(x => x.PerformAndClose(Arg.Any<Func<Task>>()))
+                .Do(x => {
+                    _runner
+                        .When(y => y.Perform(Arg.Any<Func<Task<T>>>(), Arg.Any<RequestMode>()))
+                        .Throw(new DeactivatedException());
+                });
+
         }
 
+        #endregion
 
 
         [Test]
-        public async Task PassesItselfInPerformance() 
-        {
-            SetupRunner<Grain>();
-            SetupRunner<bool>();
-            
-            var act = new Activation(_creator, _runner);
-
-            var result = await act.Perform(a => Task.FromResult(a.Equals(act)));
+        public async Task Performance_TakesActivationAsArg() 
+        {   
+            var result = await _activation.Perform(a => Task.FromResult(a.Equals(_activation)));
 
             Assert.That(result, Is.True);
         }
 
 
         [Test]
-        public async Task EmplacesGrainBeforeFirstPerformance() 
-        {
-            SetupRunner<Grain>();
-
-            _creator.Activate(Arg.Any<IActivation>()).Returns(Substitute.For<Grain>());
-            
-            var act = new Activation(_creator, _runner);
-
-            var grain = await act.Perform(a => Task.FromResult(a.Grain));
-
-            Assert.That(grain, Is.Not.Null);
+        public void Grain_OriginallyEmpty() {
+            Assert.That(_activation.Grain, Is.Null);
         }
 
 
         [Test]
-        public async Task LockLimitsActivation() 
-        {
-            int actCount = 0;
+        public async Task Grain_EmplacedByFirstPerformance() 
+        {   
+            var grain = await _activation.Perform(a => Task.FromResult(a.Grain));
 
-            SetupRunner<Grain>();
-            
+            Assert.That(grain, Is.EqualTo(_grain));
+        }
+
+
+        [Test]
+        public async Task Activation_OccursOnlyOnce() 
+        {
             _creator.Activate(Arg.Any<IActivation>())
                     .Returns(async _ => {
-                        int c = Interlocked.Increment(ref actCount);
-                        Assert.That(c, Is.EqualTo(1));
-
-                        try {
                             await Task.Delay(15);
                             return Substitute.For<Grain>();
-                        }
-                        finally {
-                            Interlocked.Decrement(ref actCount);
-                        }
-                    });
-
-            var act = new Activation(_creator, _runner);
+                        });
             
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
-                        var grain = await act.Perform(a => Task.FromResult(a.Grain));
+                        var grain = await _activation.Perform(a => Task.FromResult(a.Grain));
                         Assert.That(grain, Is.Not.Null);
                     })
                     .WhenAll();
+
+            await _creator.Received(1)
+                        .Activate(Arg.Any<IActivation>());
         }
 
 
         [Test]
-        public async Task GrainActivationDoneViaRunner() 
+        public async Task Activation_PerformedAsIsolated()
         {
-            int reqCount = 0;
-
-            _runner.Perform(Arg.Any<Func<Task<Grain>>>(), Arg.Is(RequestMode.Isolated))
-                .Returns(x => {
-                    reqCount++;
-                    var fn = x.ArgAt<Func<Task<Grain>>>(0);                                        
-                    return fn();
-                });
-                    
-            var act = new Activation(_creator, _runner);
+            await _activation.Perform(_ => Task.FromResult(true));
             
-            await act.Perform(_ => Task.FromResult(true));
-
-            Assert.That(reqCount, Is.EqualTo(1));            
+            await _runner.Received(1)
+                    .Perform(Arg.Any<Func<Task<Grain>>>(), Arg.Is(RequestMode.Isolated));
         }
 
 
+
+        //instead of detecting calls to the inner, we should be expecting basic behaviour in the inner
+        //especially: execution. 
+
+        //though then we'd be encoding expectations in our mock.
+
+        //what if the inner decides not to execute under certain circumstances?
+        //that's not entirely our business, but it *is* our business that the inner execute in normal circumstances.
+        //by just testing the invocation, we're cleaning our hands of it, and saying: do as you will. Which is wrong.
+        
+        //We expect runner to execute what we give it.
 
         [Test]
-        public async Task PerformanceDoneViaRunner() 
-        {
-            int reqCount = 0;
+        public async Task Performance_IsExecuted() 
+        {          
+            await _activation.Perform(_fn);
 
-            _runner.Perform(Arg.Any<Func<Task<bool>>>(), Arg.Any<RequestMode>())
-                    .Returns(x => {
-                        reqCount++;
-                        var fn = x.ArgAt<Func<Task>>(0);
-                        return fn();
-                    });
-
-            var act = new Activation(_creator, _runner);
-
-            await act.Perform(_ => Task.FromResult(true));
-
-            Assert.That(reqCount, Is.EqualTo(1));
+            await _fn.Received(1)(Arg.Is(_activation));            
         }
+
+
+        
+        [Test]
+        public async Task Performance_AfterDeactivation_ThrowsException()
+        {                                                    
+            await _activation.Deactivate();
+
+            Assert.That(
+                () => _activation.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
+                Throws.Exception.InstanceOf<DeactivatedException>());            
+        }
+
+               
+
+        [Test]
+        public async Task Deactivating_CallsOnDeactivation() 
+        {
+            await _activation.Deactivate();
+            
+            await _grain.Received(1).OnDeactivateAsync();
+        }
+
         
     }
 

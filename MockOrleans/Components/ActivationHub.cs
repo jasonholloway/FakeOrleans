@@ -10,9 +10,20 @@ using System.Threading.Tasks;
 namespace MockOrleans.Components
 {
 
-    public interface IGrainRegistry
+    public static class GrainSetExtensions
     {
-        Task DeactivateAll();
+        public static Task DeactivateAll(this IGrainSet @this) {
+            var acts = @this.GetActivations();
+
+            return acts.Select(a => a.Deactivate())
+                        .WhenAll();
+        }
+    }
+
+
+    public interface IGrainSet
+    {
+        IActivation[] GetActivations();
     }
 
 
@@ -22,7 +33,7 @@ namespace MockOrleans.Components
     }
 
 
-    public class ActivationHub : IPlacementDispatcher, IGrainRegistry
+    public class ActivationHub : IPlacementDispatcher, IGrainSet
     {
         readonly Func<GrainPlacement, IActivationSite> _siteFac;
         readonly ConcurrentDictionary<GrainPlacement, IActivationSite> _dSites;
@@ -40,7 +51,7 @@ namespace MockOrleans.Components
         }
 
 
-        public Task DeactivateAll() {
+        public IActivation[] GetActivations() {
             throw new NotImplementedException();
         }
 

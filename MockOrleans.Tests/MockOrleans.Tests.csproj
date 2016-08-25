@@ -94,6 +94,7 @@
     <Compile Include="ServiceTests.cs" />
     <Compile Include="StoreTests.cs" />
     <Compile Include="StreamTests.cs" />
+    <Compile Include="TestFixtureBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MockOrleans\MockOrleans.csproj">

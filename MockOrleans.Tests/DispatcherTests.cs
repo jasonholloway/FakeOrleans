@@ -18,16 +18,18 @@ namespace MockOrleans.Tests
     {
         GrainKey _key;
         GrainPlacement _placement;
-
+        Func<IActivation, Task<bool>> _fn;
+        
         Func<GrainKey, GrainPlacement> _placer;
         IPlacementDispatcher _innerDisp;
-        Dispatcher _disp;
-        Func<IActivation, Task<bool>> _fn;
+        
+        IDispatcher _disp;
+
 
         [SetUp]
         public void SetUp() {
             _key = new GrainKey(typeof(TestGrain), Guid.NewGuid());
-            _placement = new GrainPlacement(_key, null);
+            _placement = new GrainPlacement(_key);
 
             _innerDisp = Substitute.For<IPlacementDispatcher>();
 

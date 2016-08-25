@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Orleans.Runtime;
+using MockOrleans.Components;
 
 namespace MockOrleans.Tests
 {

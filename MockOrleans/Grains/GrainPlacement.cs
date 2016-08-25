@@ -10,11 +10,9 @@ namespace MockOrleans.Grains
     public class GrainPlacement //stateless workers can use subtypes of this?
     {
         public readonly GrainKey Key;
-        internal readonly GrainRegistry Registry;
-
-        public GrainPlacement(GrainKey key, GrainRegistry registry) {
+        
+        public GrainPlacement(GrainKey key) {
             Key = key;
-            Registry = registry;
         }
 
         public override bool Equals(object obj)

@@ -17,7 +17,9 @@ namespace MockOrleans.Grains
         StreamReceiverRegistry Receivers { get; }
 
         Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
+        Task Deactivate();
     }
+    
 
 
     public interface IActivationProvider
