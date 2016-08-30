@@ -18,6 +18,7 @@ namespace MockOrleans.Tests
     {
         GrainPlacement _placement;
         Func<GrainPlacement, IActivationSite> _siteFac;
+        Func<IActivation> _actCreator;
         ActivationHub _hub;
         
 
@@ -25,15 +26,25 @@ namespace MockOrleans.Tests
         public void SetUp() {
             _placement = CreatePlacement();
 
-            _siteFac = Substitute.For<Func<GrainPlacement, IActivationSite>>();
-            _siteFac(Arg.Any<GrainPlacement>()).Returns(_ => Substitute.For<IActivationSite>());
+            _actCreator = () => {
+                var act = Substitute.For<IActivation>();
+
+                act.Perform(Arg.Any<Func<IActivation, Task<IActivation>>>(), Arg.Any<RequestMode>())
+                    .Returns(c => c.Arg<Func<IActivation, Task<IActivation>>>()(act));
+
+                return act;
+            };
             
+            _siteFac = Substitute.For<Func<GrainPlacement, IActivationSite>>();
+            _siteFac(Arg.Any<GrainPlacement>())
+                .Returns(_ => new ActivationSite(_actCreator)); //reliant on ActivationSite
+
             _hub = new ActivationHub(_siteFac);
         }
 
 
         [Test]
-        public async Task DefersToFactoryToCreateSite() 
+        public async Task ActivationSites_CreatedByPassedFactory() 
         {            
             await _hub.Dispatch(_placement, g => Task.FromResult(true));
             
@@ -42,7 +53,7 @@ namespace MockOrleans.Tests
                 
 
         [Test]
-        public async Task CachesSiteWhenCreated() 
+        public async Task ActivationSites_CachedOnceCreated() 
         {
             for(int i = 0; i < 10; i++) {
                 await _hub.Dispatch(_placement, g => Task.FromResult(true));
@@ -53,7 +64,7 @@ namespace MockOrleans.Tests
 
         
         [Test]
-        public async Task DelegatesDispatchToSite() 
+        public async Task Dispatch_DelegatesToRelevantActivationSite() 
         {
             var site = Substitute.For<IActivationSite>();
             _siteFac(Arg.Is(_placement)).Returns(site);
@@ -66,7 +77,7 @@ namespace MockOrleans.Tests
 
 
         [Test]
-        public async Task LeavesRequestModeUnspecified() 
+        public async Task Dispatch_LeavesRequestModeUnspecified() 
         {
             var site = Substitute.For<IActivationSite>();
             _siteFac(Arg.Is(_placement)).Returns(site);
@@ -120,7 +131,7 @@ namespace MockOrleans.Tests
         [Test]
         public async Task GetActivations_DoesntReturnDeactivated() 
         {
-            //...
+            
 
             throw new NotImplementedException();
         }

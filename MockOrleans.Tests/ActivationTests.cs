@@ -114,19 +114,7 @@ namespace MockOrleans.Tests
             await _runner.Received(1)
                     .Perform(Arg.Any<Func<Task<Grain>>>(), Arg.Is(RequestMode.Isolated));
         }
-
-
-
-        //instead of detecting calls to the inner, we should be expecting basic behaviour in the inner
-        //especially: execution. 
-
-        //though then we'd be encoding expectations in our mock.
-
-        //what if the inner decides not to execute under certain circumstances?
-        //that's not entirely our business, but it *is* our business that the inner execute in normal circumstances.
-        //by just testing the invocation, we're cleaning our hands of it, and saying: do as you will. Which is wrong.
         
-        //We expect runner to execute what we give it.
 
         [Test]
         public async Task Performance_IsExecuted() 

@@ -31,6 +31,7 @@ namespace MockOrleans.Grains
 
     public interface IActivationSite
     {
+        IActivation Activation { get; }
         Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode);
     }
 
@@ -38,20 +39,25 @@ namespace MockOrleans.Grains
 
     public class ActivationSite : IActivationSite
     {
-        readonly IActivationProvider _actProv;
+        readonly Func<IActivation>_actCreator;
 
         IActivation _act = null;
         object _sync = new object();
 
-        public ActivationSite(IActivationProvider actProv) {
-            _actProv = actProv;
+        public ActivationSite(Func<IActivation> actCreator) {
+            _actCreator = actCreator;
         }
-
-        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) {
+        
+        public IActivation Activation {
+            get { return _act; }
+        }
+        
+        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
+        {
             IActivation act = null;
 
             lock(_sync) {
-                act = _act ?? (_act = _actProv.GetActivation());
+                act = _act ?? (_act = _actCreator());
             }
 
             try {

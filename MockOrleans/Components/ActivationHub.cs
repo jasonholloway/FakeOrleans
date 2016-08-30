@@ -51,9 +51,12 @@ namespace MockOrleans.Components
         }
 
 
-        public IActivation[] GetActivations() {
-            throw new NotImplementedException();
-        }
+        public IActivation[] GetActivations() 
+            => _dSites.Values.ToArray()
+                    .Select(s => s.Activation)
+                    .Where(a => a != null)
+                    .ToArray();
+
 
     }
 

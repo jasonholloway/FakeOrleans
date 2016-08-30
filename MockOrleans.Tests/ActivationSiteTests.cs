@@ -1,5 +1,4 @@
-﻿
-using MockOrleans.Grains;
+﻿using MockOrleans.Grains;
 using NSubstitute;
 using NUnit.Framework;
 using Orleans;
@@ -24,14 +23,11 @@ namespace MockOrleans.Tests
         public async Task DispatchesToActivation() 
         {
             var guid = Guid.NewGuid();
-
+            
             var activation = Substitute.For<IActivation>();
             activation.Perform(Arg.Is(_fn)).Returns(guid);
-
-            var actProv = Substitute.For<IActivationProvider>();
-            actProv.GetActivation().Returns(activation);
-
-            var site = new ActivationSite(actProv);
+            
+            var site = new ActivationSite(() => activation);
 
             var result = await site.Dispatch(_fn);
 
@@ -52,11 +48,11 @@ namespace MockOrleans.Tests
 
             var goodActivation = Substitute.For<IActivation>();
             goodActivation.Perform(Arg.Is(_fn)).Returns(guid);
-
-            var actProv = Substitute.For<IActivationProvider>();
-            actProv.GetActivation().Returns(deadActivation, goodActivation);
-
-            var site = new ActivationSite(actProv);
+            
+            var actCreator = Substitute.For<Func<IActivation>>();
+            actCreator().Returns(deadActivation, goodActivation);
+            
+            var site = new ActivationSite(actCreator);
 
             var result = await site.Dispatch(_fn);
 
@@ -68,16 +64,14 @@ namespace MockOrleans.Tests
 
         [Test]
         public async Task SameActivationUsedIfGood() 
-        {            
-            var actProv = Substitute.For<IActivationProvider>();
-
-            actProv.GetActivation().Returns(_ => {
-                var activation = Substitute.For<IActivation>();
-                activation.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
-                return activation;
-            });
-
-            var site = new ActivationSite(actProv);
+        {
+            var actCreator = new Func<IActivation>(() => {
+                                        var act = Substitute.For<IActivation>();
+                                        act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
+                                        return act;
+                                    });
+            
+            var site = new ActivationSite(actCreator);
 
             var result1 =  await site.Dispatch(_fn);
             var result2 = await site.Dispatch(_fn);
@@ -92,16 +86,14 @@ namespace MockOrleans.Tests
         [Test]
         public async Task ReactivatesOneAtATimeViaLock() 
         {
-            var actProv = Substitute.For<IActivationProvider>();
-
-            actProv.GetActivation().Returns(_ => {
-                var activation = Substitute.For<IActivation>();
-                activation.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
-                return activation;
+            var actCreator = new Func<IActivation>(() => {
+                var act = Substitute.For<IActivation>();
+                act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
+                return act;
             });
 
-            var site = new ActivationSite(actProv);
-            
+            var site = new ActivationSite(actCreator);
+
             var results = await Enumerable.Range(0, 1000)
                                     .Select(async _ => {
                                         await Task.Delay(15);
