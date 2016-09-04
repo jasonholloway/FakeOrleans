@@ -1,0 +1,124 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{666FEF51-0955-4AC9-BA0E-A6D2982CE6A5}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>MockOrleans</RootNamespace>
+    <AssemblyName>MockOrleans</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=1.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.1.0.0\lib\netstandard1.1\Microsoft.Extensions.DependencyInjection.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=1.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.Abstractions.1.0.0\lib\netstandard1.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Orleans, Version=1.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Orleans.Core.1.3.0\lib\net451\Orleans.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="OrleansRuntime, Version=1.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Orleans.OrleansRuntime.1.3.0\lib\net451\OrleansRuntime.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Bits\Extensions\DictionaryExtensions.cs" />
+    <Compile Include="Bits\Extensions\EnumerableExtensions.cs" />
+    <Compile Include="Bits\VoidType.cs" />
+    <Compile Include="Components\Dispatcher.cs" />
+    <Compile Include="Components\ExceptionSink.cs" />
+    <Compile Include="Components\FixtureScheduler.cs" />
+    <Compile Include="Components\ActivationHub.cs" />
+    <Compile Include="Components\Placer.cs" />
+    <Compile Include="Components\RequestRunner.cs" />
+    <Compile Include="Components\ServiceRegistry.cs" />
+    <Compile Include="Grains\Activation.cs" />
+    <Compile Include="Grains\ActivationSite.cs" />
+    <Compile Include="Grains\GrainExtensions.cs" />
+    <Compile Include="Bits\Extensions\MiscExtensions.cs" />
+    <Compile Include="Bits\Extensions\StringExtensions.cs" />
+    <Compile Include="Bits\Extensions\TypeExtensions.cs" />
+    <Compile Include="Bits\Require.cs" />
+    <Compile Include="Components\ProviderRegistry.cs" />
+    <Compile Include="Components\StorageCell.cs" />
+    <Compile Include="Grains\GrainPlacement.cs" />
+    <Compile Include="Grains\Streams\GrainStreamClient.cs" />
+    <Compile Include="Grains\Streams\GrainStreamHandle.cs" />
+    <Compile Include="Grains\Streams\StreamReceiverRegistry.cs" />
+    <Compile Include="Grains\Reminders\GrainReminderRegistry.cs" />
+    <Compile Include="Reminders\Reminder.cs" />
+    <Compile Include="Reminders\ReminderRegistry.cs" />
+    <Compile Include="Components\TypeMap.cs" />
+    <Compile Include="Components\TimerRegistry.cs" />
+    <Compile Include="Grains\Streams\StreamAdaptors.cs" />
+    <Compile Include="Streams\Stream.cs" />
+    <Compile Include="Streams\StreamRegistry.cs" />
+    <Compile Include="Components\StorageRegistry.cs" />
+    <Compile Include="Bits\DynaType.cs" />
+    <Compile Include="FixtureExtensions.cs" />
+    <Compile Include="Grains\GrainKey.cs" />
+    <Compile Include="Grains\GrainActivator.cs" />
+    <Compile Include="Grains\GrainHarness.cs" />
+    <Compile Include="Grains\GrainProxy.cs" />
+    <Compile Include="Grains\GrainSpec.cs" />
+    <Compile Include="Grains\GrainTaskScheduler.cs" />
+    <Compile Include="Grains\IGrainEndpoint.cs" />
+    <Compile Include="Grains\FakeGrainFactory.cs" />
+    <Compile Include="Components\FakeSerializer.cs" />
+    <Compile Include="Fixture.cs" />
+    <Compile Include="Components\_GrainRegistry.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Streams\StreamKey.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
