@@ -2,7 +2,6 @@
 using FakeOrleans.Grains;
 using NSubstitute;
 using NUnit.Framework;
-using Orleans;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -114,12 +113,8 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task GetActivations_ReturnsAllCreatedActivations() 
         {
-            var placements = Enumerable.Range(0, 100)
-                                .Select(_ => CreatePlacement())
-                                .ToArray();
-
-            var createdActs = await placements
-                                    .Select(p => _hub.Dispatch(p, a => Task.FromResult(a)))
+            var createdActs = await Enumerable.Range(0, 100)
+                                    .Select(_ => _hub.Dispatch(CreatePlacement(), a => Task.FromResult(a)))
                                     .WhenAll();
 
             var returnedActs = _hub.GetActivations();
@@ -131,9 +126,18 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task GetActivations_DoesntReturnDeactivated() 
         {
-            
+            var createdActs = await Enumerable.Range(0, 100)
+                                    .Select(_ => _hub.Dispatch(CreatePlacement(), a => Task.FromResult(a)))
+                                    .WhenAll();
 
-            throw new NotImplementedException();
+            var killedActs = createdActs.Skip(30).Take(20).ToArray();
+            await Task.WhenAll(killedActs.Select(a => a.Deactivate()));
+                        
+            //may need to wait here...
+
+            var returnedActs = _hub.GetActivations();
+
+            Assert.That(returnedActs, Is.EquivalentTo(createdActs.Except(killedActs)));
         }
 
         

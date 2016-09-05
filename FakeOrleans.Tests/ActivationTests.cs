@@ -130,6 +130,8 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Performance_AfterDeactivation_ThrowsException()
         {                                                    
+            //needs to be activated first?
+
             await _activation.Deactivate();
 
             Assert.That(
@@ -141,7 +143,15 @@ namespace FakeOrleans.Tests
 
         [Test]
         public async Task Deactivating_CallsOnDeactivation() 
-        {
+        {            
+            //need to create interior grain first...
+            //
+            //grain is created on first performance
+            //but deactivation currently goes direct to runner
+            //activation should maintain a status that it uses to regulate call of deactivate etc
+            //
+            //this status will lead to DeactivatedException being thrown to satisfy above class
+
             await _activation.Deactivate();
             
             await _grain.Received(1).OnDeactivateAsync();

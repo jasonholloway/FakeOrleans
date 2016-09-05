@@ -18,6 +18,14 @@ namespace FakeOrleans.Grains
     }
 
 
+    public enum ActivationStatus
+    {
+        Unactivated,
+        Activated,
+        Deactivated
+    }
+
+
 
     public class Activation : IActivation
     {
@@ -32,6 +40,11 @@ namespace FakeOrleans.Grains
             _runner = runner;
             _grainFac = grainFac;
         }
+
+
+        Grain _grain = null;
+        volatile ActivationStatus _status = ActivationStatus.Unactivated;
+
         
 
         public Grain Grain {
@@ -44,24 +57,40 @@ namespace FakeOrleans.Grains
 
         public async Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
         {
-            await _sm.WaitAsync();
-
             try {
-                if(_grain == null) {
-                    _grain = _grainFac(this); //await _grainFac.Create(_placement, this);
-                    await _runner.Perform(() => _grain.OnActivateAsync().Box(), RequestMode.Isolated);
-                }
-            }
-            finally {
-                _sm.Release();
-            }
+                await _sm.WaitAsync();
 
-            return await _runner.Perform(() => fn(this), mode);
+                try {
+                    if(_status == ActivationStatus.Deactivated) {
+                        throw new DeactivatedException();
+                    }
+
+                    if(_grain == null) {
+                    	_grain = _grainFac(this); //await _grainFac.Create(_placement, this);
+                    	await _runner.Perform(async () => {
+												await _grain.OnActivateAsync();
+												_status = ActivationStatus.Activated; 
+											}, RequestMode.Isolated);
+					}
+                }
+                finally {
+                    _sm.Release();
+                }
+
+                return await _runner.Perform(() => fn(this), mode);
+            }
+            catch(RequestRunnerClosedException) {
+                throw new DeactivatedException();
+            }
         }
 
+        public Task Deactivate() 
+        {            
+            _runner.PerformAndClose(() => {
+                _status = ActivationStatus.Deactivated;
+                return Grain.OnDeactivateAsync();
+            });
 
-        public Task Deactivate() {
-            _runner.PerformAndClose(() => Grain.OnDeactivateAsync());
             return Task.CompletedTask;
         }
 
@@ -77,8 +106,6 @@ namespace FakeOrleans.Grains
             throw new NotImplementedException();
         }
     }
-
-
-
+    
 
 }

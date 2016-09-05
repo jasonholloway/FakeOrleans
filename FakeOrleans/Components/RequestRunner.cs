@@ -25,6 +25,10 @@ namespace FakeOrleans
     }
 
 
+    public class RequestRunnerClosedException : Exception { }
+
+
+
     public class RequestRunner : IRequestRunner, IDisposable
     {
         TaskScheduler _scheduler;
@@ -67,7 +71,7 @@ namespace FakeOrleans
 
         void Enter(bool isDeactivation = false) {            
             lock(_sync) {
-                if(!isDeactivation && _mode == Mode.Closed) throw new InvalidOperationException($"RequestRunner is {_mode}!");
+                if(!isDeactivation && _mode == Mode.Closed) throw new RequestRunnerClosedException();
 
                 _count++;
             }
