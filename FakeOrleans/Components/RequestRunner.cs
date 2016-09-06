@@ -12,7 +12,7 @@ namespace FakeOrleans
     {
         Task<T> Perform<T>(Func<Task<T>> fn, RequestMode mode);
         void PerformAndForget(Func<Task> fn, RequestMode mode);
-        void PerformAndClose(Func<Task> fn);
+        Task Close(Func<Task> fn);
         Task WhenIdle();
     }
 
@@ -37,6 +37,7 @@ namespace FakeOrleans
         int _count;
         Queue<TaskCompletionSource<bool>> _whenIdleTaskSources;
         Queue<TaskCompletionSource<bool>> _whenInnerClearTaskSources;
+        Queue<TaskCompletionSource<bool>> _whenClosedTaskSources;
         object _sync = new object();
 
         bool _defaultIsolation = false;
@@ -52,7 +53,6 @@ namespace FakeOrleans
         }
         
 
-
         volatile Mode _mode = Mode.Active;
         Func<Task<VoidType>> _fnOnClose;
 
@@ -65,6 +65,7 @@ namespace FakeOrleans
             _innerReqs = innerReqs;
             _whenIdleTaskSources = new Queue<TaskCompletionSource<bool>>();
             _whenInnerClearTaskSources = new Queue<TaskCompletionSource<bool>>();
+            _whenClosedTaskSources = new Queue<TaskCompletionSource<bool>>();
             _defaultIsolation = isolate;
         }
 
@@ -127,15 +128,15 @@ namespace FakeOrleans
         void Leave() 
         {
             Queue<TaskCompletionSource<bool>> capturedTaskSources = null;
-            bool runDeactivation = false;
+            bool closeNow = false;
 
             lock(_sync) {
                 _count--;
                 
                 if(_count == 0) {
-                    if(_mode == Mode.Closing) {  //!!! as soon as deactivation requested, closed should == true
+                    if(_mode == Mode.Closing) {
                         _mode = Mode.Closed;
-                        runDeactivation = true; //this allows sneak preview of idleness
+                        closeNow = true;
                     }
                     else {
                         capturedTaskSources = Interlocked.Exchange(ref _whenIdleTaskSources, new Queue<TaskCompletionSource<bool>>());
@@ -143,14 +144,28 @@ namespace FakeOrleans
                 }
             }
 
-            if(runDeactivation) {
-                PerformInner(_fnOnClose, RequestMode.Isolated, true)
-                    .SinkExceptions(_exceptionSink);
-            }
+            if(closeNow) RunClose();
 
             _innerReqs?.Leave();
             capturedTaskSources?.ForEach(ts => ts.SetResult(true));
         }
+
+
+
+        void RunClose() 
+        {
+            PerformInner(_fnOnClose, RequestMode.Isolated, true)
+                .ContinueWith(t => {
+                    if(t.IsFaulted) {
+                        _whenClosedTaskSources.ForEach(tcs => tcs.SetException(t.Exception));
+                    }
+                    else {
+                        _whenClosedTaskSources.ForEach(tcs => tcs.SetResult(true));
+                    }
+                }) 
+                .SinkExceptions(_exceptionSink);
+        }
+
 
 
         //and also - current request, if isolated, should be protected from intrusion
@@ -171,32 +186,35 @@ namespace FakeOrleans
 
 
 
-        public void PerformAndClose(Func<Task> fn = null) 
+        public Task Close(Func<Task> fn = null) 
         {
             _fnOnClose = async () => {
                 await fn();
                 return default(VoidType);
             };
 
-            bool runDeactivation = false;
+            var tcs = new TaskCompletionSource<bool>();
+            bool closeNow = false;
 
             lock(_sync) {
+                if(_mode == Mode.Closed) {
+                    throw new InvalidOperationException("RequestRunner is already closed!");
+                }
+
                 if(_count == 0) {
                     _mode = Mode.Closed;
-                    runDeactivation = true;
+                    closeNow = true;
                 }                
                 else {
                     _mode = Mode.Closing;
                 }
+
+                _whenClosedTaskSources.Enqueue(tcs);
             }
             
-            if(runDeactivation) {
-                PerformInner(_fnOnClose, RequestMode.Isolated, true)
-                    .SinkExceptions(_exceptionSink);
-            }
-
-            //should use TCS to communicate back when deactivation done
-            //...        
+            if(closeNow) RunClose();
+            
+            return tcs.Task;
         }
 
 

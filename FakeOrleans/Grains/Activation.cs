@@ -51,6 +51,10 @@ namespace FakeOrleans.Grains
             get { return _grain; } //DEBUG ONLY???
         }
 
+        public ActivationStatus Status {
+            get { return _status; }
+        }
+
 
 
         SemaphoreSlim _sm = new SemaphoreSlim(1);
@@ -85,8 +89,12 @@ namespace FakeOrleans.Grains
         }
 
         public Task Deactivate() 
-        {            
-            _runner.PerformAndClose(() => {
+        {    
+            if(_status == ActivationStatus.Unactivated) {
+                throw new NotImplementedException("Activation not yet activated!");
+            }
+                                
+            _runner.Close(() => {
                 _status = ActivationStatus.Deactivated;
                 return Grain.OnDeactivateAsync();
             });

@@ -1,5 +1,3 @@
-﻿using FakeOrleans.Grains;
-using Orleans;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +9,16 @@ namespace FakeOrleans.Grains
 
     public class DeactivatedException : Exception { }
 
+
+    public interface IActivation
+    {
+        Grain Grain { get; }
+        ActivationStatus Status { get; }
+        StreamReceiverRegistry Receivers { get; }
+
+        Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
+        Task Deactivate();
+    }
     
 
     public interface IActivationProvider

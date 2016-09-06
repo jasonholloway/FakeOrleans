@@ -14,9 +14,7 @@ namespace FakeOrleans.Components
     {
         public static Task DeactivateAll(this IGrainSet @this) {
             var acts = @this.GetActivations();
-
-            return acts.Select(a => a.Deactivate())
-                        .WhenAll();
+            return acts.Select(a => a.Deactivate()).WhenAll();
         }
     }
 

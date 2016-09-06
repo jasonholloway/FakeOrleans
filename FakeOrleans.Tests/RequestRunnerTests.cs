@@ -92,34 +92,32 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public void ClosingDisallowsFurtherRequests() 
+        public void Closing_DisallowsFurtherRequests() 
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
 
-            requests.PerformAndClose(() => Task.Delay(50));
+            requests.Close(() => Task.Delay(50));
             
-            var task = requests.Perform(() => Task.CompletedTask);
-                        
             Assert.That(
-                () => task,
-                Throws.InvalidOperationException);
+                () => requests.Perform(() => Task.CompletedTask),
+                Throws.Exception.InstanceOf<RequestRunnerClosedException>());
         }
 
 
         
         [Test]
-        public async Task WhenIdleWaitsForCompletionOfDeactivation() 
+        public async Task WhenIdle_AwaitsCompletionOfDeactivation() 
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
             
             bool closed = false;
             
-            requests.PerformAndClose(async () => {
-                await Task.Delay(100);
-                closed = true;
-            });
+            requests.Close(async () => {
+                                        await Task.Delay(100);
+                                        closed = true;
+                                    });
 
             await requests.WhenIdle();
             exceptions.RethrowAll();
@@ -130,7 +128,8 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task DeactivationPerformed() {
+        public async Task Closing_Performed() 
+        {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
 
@@ -138,7 +137,7 @@ namespace FakeOrleans.Tests
 
             requests.PerformAndForget(() => Task.Delay(50));
             
-            requests.PerformAndClose(() => {
+            requests.Close(() => {
                 closed = true;
                 return Task.CompletedTask;
             });
@@ -151,14 +150,14 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task DeactivatesImmediatelyWhenNoneWaiting() 
+        public async Task Closes_Immediately_WhenNoneWaiting() 
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
             
             bool closed = false;
             
-            requests.PerformAndClose(() => {
+            requests.Close(() => {
                 closed = true;
                 return Task.CompletedTask;
             });
@@ -171,7 +170,7 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task ClosesAfterPreviouslyScheduledPerformances() 
+        public async Task Closes_OnlyAfter_PreviouslyScheduledPerformances() 
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
@@ -186,7 +185,7 @@ namespace FakeOrleans.Tests
                         }))
                         .ToArray();
             
-            requests.PerformAndClose(() => {                
+            requests.Close(() => {                
                     Assert.That(calls, Is.EqualTo(0));
                     return Task.CompletedTask;
                 });
@@ -197,21 +196,36 @@ namespace FakeOrleans.Tests
 
 
 
+        //[Test]
+        //public async Task Closing_SinksExceptions() 
+        //{
+        //    var exceptions = new ExceptionSink();
+        //    var requests = new RequestRunner(TaskScheduler.Default, exceptions);
+
+        //    requests.PerformAndClose(() => {
+        //        throw new TestException();
+        //    });
+
+        //    await requests.WhenIdle();
+
+        //    Assert.That(
+        //        () => exceptions.RethrowAll(), 
+        //        Throws.InnerException.InstanceOf<TestException>());            
+        //}
+
+
+
         [Test]
-        public async Task DeactivationExceptionSinked() 
+        public async Task Closing_IsAwaitable() 
         {
             var exceptions = new ExceptionSink();
             var requests = new RequestRunner(TaskScheduler.Default, exceptions);
-            
-            requests.PerformAndClose(() => {
-                throw new TestException();
-            });
 
-            await requests.WhenIdle();
+            bool completed = false;
 
-            Assert.That(
-                () => exceptions.RethrowAll(), 
-                Throws.InnerException.InstanceOf<TestException>());            
+            await requests.Close(() => Task.Delay(500).ContinueWith(_ => completed = true));
+
+            Assert.That(completed);
         }
 
 

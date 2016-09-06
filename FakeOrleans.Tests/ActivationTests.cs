@@ -36,38 +36,21 @@ namespace FakeOrleans.Tests
             _grainFac = Substitute.For<Func<IActivation, Grain>>();
             _grainFac(Arg.Any<IActivation>()).Returns(_grain);
             
-            _runner = Substitute.For<IRequestRunner>();
+            var exceptionSink = new ExceptionSink();
+
+            _runner = new RequestRunner(new GrainTaskScheduler(new FixtureScheduler(), exceptionSink), exceptionSink);
+          
             _activation = new Activation(_placement, _runner, _grainFac);
 
-            _fn = Substitute.For<Func<IActivation, Task<bool>>>();
-
-            SetupRunner<Grain>();
-            SetupRunner<bool>();
+            _fn = Substitute.For<Func<IActivation, Task<bool>>>();            
         }
         
-        void SetupRunner<T>() 
-        {
-            _runner.Perform(Arg.Any<Func<Task<T>>>(), Arg.Any<RequestMode>())
-                    .Returns(x => {
-                        var fn = x.ArgAt<Func<Task<T>>>(0);
-                        return fn();
-                    });
-
-            _runner
-                .When(x => x.PerformAndClose(Arg.Any<Func<Task>>()))
-                .Do(x => {
-                    _runner
-                        .When(y => y.Perform(Arg.Any<Func<Task<T>>>(), Arg.Any<RequestMode>()))
-                        .Throw(new DeactivatedException());
-                });
-
-        }
 
         #endregion
 
 
         [Test]
-        public async Task Performance_TakesActivationAsArg() 
+        public async Task Perform_ProvidesActivationToDelegate() 
         {   
             var result = await _activation.Perform(a => Task.FromResult(a.Equals(_activation)));
 
@@ -105,20 +88,10 @@ namespace FakeOrleans.Tests
 
             _grainFac.Received(1)(Arg.Any<IActivation>());
         }
-
-
-        [Test]
-        public async Task Activation_PerformedAsIsolated()
-        {
-            await _activation.Perform(_ => Task.FromResult(true));
-            
-            await _runner.Received(1)
-                    .Perform(Arg.Any<Func<Task<Grain>>>(), Arg.Is(RequestMode.Isolated));
-        }
         
 
         [Test]
-        public async Task Performance_IsExecuted() 
+        public async Task Perform_ExecutesDelegate() 
         {          
             await _activation.Perform(_fn);
 
@@ -128,12 +101,12 @@ namespace FakeOrleans.Tests
 
         
         [Test]
-        public async Task Performance_AfterDeactivation_ThrowsException()
-        {                                                    
-            //needs to be activated first?
+        public async Task Perform_AfterDeactivation_ThrowsException()
+        {
+            await _activation.Perform(_ => Task.FromResult(true));
 
             await _activation.Deactivate();
-
+            
             Assert.That(
                 () => _activation.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
                 Throws.Exception.InstanceOf<DeactivatedException>());            
@@ -142,22 +115,30 @@ namespace FakeOrleans.Tests
                
 
         [Test]
-        public async Task Deactivating_CallsOnDeactivation() 
-        {            
-            //need to create interior grain first...
-            //
-            //grain is created on first performance
-            //but deactivation currently goes direct to runner
-            //activation should maintain a status that it uses to regulate call of deactivate etc
-            //
-            //this status will lead to DeactivatedException being thrown to satisfy above class
+        public async Task Deactivate_CallsOnDeactivation() 
+        {
+            await _activation.Perform(_ => Task.FromResult(true));
 
             await _activation.Deactivate();
             
+            await _runner.WhenIdle();
+             
             await _grain.Received(1).OnDeactivateAsync();
         }
 
         
+
+        [Test]
+        public async Task Deactivate_CompletesWhenDeactivated() {
+            _activation.Perform(_ => Task.Delay(500).ContinueWith(t => true)).Ignore();
+
+            await _activation.Deactivate();
+
+            Assert.That(_activation.Status, Is.EqualTo(ActivationStatus.Deactivated));
+        }
+
+
+
     }
 
     

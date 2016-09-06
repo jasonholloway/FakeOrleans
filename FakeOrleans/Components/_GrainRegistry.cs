@@ -123,20 +123,20 @@ namespace FakeOrleans
             GrainHarness activation;
 
             if(_dActivations.TryRemove(placement, out activation)) {
-                await activation.Deactivate();
-                activation.Dispose();
+                activation.Deactivate();
+                //activation.Dispose();
             }
         }
                 
 
-        public async Task DeactivateAll() 
+        public void DeactivateAll() 
         {
             var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
 
-            await captured.Values.Select(async a => {
-                                            await a.Deactivate();
-                                            a.Dispose();
-                                        }).WhenAll();
+            captured.Values.ForEach(a => {
+                a.Deactivate();
+                //a.Dispose();
+            });
         }
 
         

@@ -32,6 +32,10 @@ namespace FakeOrleans.Grains
 
         
         IGrain Grain { get; set; } = null;
+
+        public ActivationStatus Status {
+            get { throw new NotImplementedException(); }
+        }
         
         
         public GrainHarness(Fixture fx, GrainPlacement placement) 
@@ -94,8 +98,8 @@ namespace FakeOrleans.Grains
 
 
         public Task Deactivate() {
-            Requests.PerformAndClose(DeactivateInner);
-            return Task.CompletedTask; //!!!!!!!!
+            Requests.Close(DeactivateInner);
+            return Task.CompletedTask;
         }
 
         
