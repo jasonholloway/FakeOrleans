@@ -26,9 +26,9 @@ namespace MockOrleans
                 
 
 
-        public static TService Get<TService>(this IServiceProvider @this) {
-            return (TService)@this.GetService(typeof(TService));
-        }
+        //public static TService Get<TService>(this IServiceProvider @this) {
+        //    return (TService)@this.GetService(typeof(TService));
+        //}
 
 
 
