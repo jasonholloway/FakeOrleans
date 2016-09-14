@@ -1,4 +1,5 @@
-﻿using Orleans;
+﻿using FakeOrleans.Grains;
+using Orleans;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,17 +11,7 @@ namespace FakeOrleans.Grains
 
     public class DeactivatedException : Exception { }
 
-
-    public interface IActivation
-    {
-        Grain Grain { get; }
-        StreamReceiverRegistry Receivers { get; }
-
-        Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
-        Task Deactivate();
-    }
     
-
 
     public interface IActivationProvider
     {
@@ -39,15 +30,22 @@ namespace FakeOrleans.Grains
 
     public class ActivationSite : IActivationSite
     {
-        readonly Func<IActivation>_actCreator;
+        readonly Func<GrainPlacement, IActivation>_actCreator;
 
+        GrainPlacement _placement;
         IActivation _act = null;
         object _sync = new object();
 
-        public ActivationSite(Func<IActivation> actCreator) {
+        public ActivationSite(Func<GrainPlacement, IActivation> actCreator) {
             _actCreator = actCreator;
         }
         
+
+        public void Init(GrainPlacement placement) {
+            _placement = placement;
+        }
+
+
         public IActivation Activation {
             get { return _act; }
         }
@@ -57,7 +55,7 @@ namespace FakeOrleans.Grains
             IActivation act = null;
 
             lock(_sync) {
-                act = _act ?? (_act = _actCreator());
+                act = _act ?? (_act = _actCreator(_placement));
             }
 
             try {

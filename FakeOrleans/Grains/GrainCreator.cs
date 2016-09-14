@@ -16,7 +16,96 @@ namespace FakeOrleans.Grains
 {
     using FnStorageAssigner = Action<Grain, IStorage>;
     using FnStateExtractor = Func<Grain, IGrainState>;
-    
+    using Orleans.Timers;
+    using Orleans.Streams;
+    using Streams;
+
+    public interface IGrainFac
+    {
+        Task<Grain> Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime);
+    }
+
+
+
+
+    public class GrainFac : IGrainFac
+    {
+        readonly IServiceProvider _services;
+        
+        public GrainFac(IServiceProvider services) {
+            _services = services;    
+        }
+        
+        public Task<Grain> Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime) 
+        {
+            var key = placement.Key;
+            var grainType = key.ConcreteType;
+
+            var creator = new GrainCreator(runtime, _services);
+
+            throw new NotImplementedException();
+        }
+    }
+
+
+
+
+    public class FakeGrainRuntime : IGrainRuntime
+    {
+        IActivation _act;
+        Fixture _fx;
+        
+        public FakeGrainRuntime(Fixture fx) {
+            _fx = fx;
+        }
+
+        public void Init(IActivation act) {
+            _act = act;
+        }
+
+
+        public Guid ServiceId { get; } = Guid.NewGuid();
+        public string SiloIdentity { get; } = "SiloIdentity";
+
+        public IServiceProvider ServiceProvider {
+            get { return _fx.Services; }
+        }
+
+        public IGrainFactory GrainFactory {
+            get { return _fx.GrainFactory; }
+        }
+
+        
+
+        public ITimerRegistry TimerRegistry {
+            get { return _act.Timers; }
+        }
+
+        public IReminderRegistry ReminderRegistry {
+            get { return _fx.Reminders.GetRegistry(_act.Placement.Key); }
+        }
+
+        public IStreamProviderManager StreamProviderManager {
+            get { return new StreamProviderManagerAdaptor(this, _fx.Streams); }
+        }
+        
+        public void DeactivateOnIdle(Grain grain) {
+            _act.Deactivate().SinkExceptions(_fx.Exceptions);
+        }
+
+        public void DelayDeactivation(Grain grain, TimeSpan timeSpan) {
+            throw new NotImplementedException();
+        }
+
+        public Logger GetLogger(string loggerName) {
+            throw new NotImplementedException();
+        }
+        
+    }
+
+
+
+
 
     public static class GrainActivator
     {

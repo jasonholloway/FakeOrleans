@@ -18,21 +18,26 @@ namespace FakeOrleans.Tests
 
         #region etc
 
-        IGrainCreator _creator;
+        Func<IActivation, Grain> _grainFac;
         IRequestRunner _runner;
-        IActivation _activation;
+        Activation _activation;
         Grain _grain;
+        GrainPlacement _placement;
+
         Func<IActivation, Task<bool>> _fn;
         
         [SetUp]
         public void SetUp() { //our expectations of others - but what enforces others' real implementations to fulfil these? Integration testing, obvs.
+
+            _placement = new GrainPlacement(new GrainKey(typeof(Grain), Guid.NewGuid()));
+
             _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
-            
-            _creator = Substitute.For<IGrainCreator>();
-            _creator.Activate(Arg.Any<IActivation>()).Returns(_grain);
+
+            _grainFac = Substitute.For<Func<IActivation, Grain>>();
+            _grainFac(Arg.Any<IActivation>()).Returns(_grain);
             
             _runner = Substitute.For<IRequestRunner>();
-            _activation = new Activation(_creator, _runner);
+            _activation = new Activation(_placement, _runner, _grainFac);
 
             _fn = Substitute.For<Func<IActivation, Task<bool>>>();
 
@@ -88,11 +93,8 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Activation_OccursOnlyOnce() 
         {
-            _creator.Activate(Arg.Any<IActivation>())
-                    .Returns(async _ => {
-                            await Task.Delay(15);
-                            return Substitute.For<Grain>();
-                        });
+            _grainFac(Arg.Any<IActivation>())
+                    .Returns(_ => Substitute.For<Grain>());
             
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
@@ -101,8 +103,7 @@ namespace FakeOrleans.Tests
                     })
                     .WhenAll();
 
-            await _creator.Received(1)
-                        .Activate(Arg.Any<IActivation>());
+            _grainFac.Received(1)(Arg.Any<IActivation>());
         }
 
 

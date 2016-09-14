@@ -18,7 +18,7 @@ namespace FakeOrleans.Tests
     {
         GrainPlacement _placement;
         Func<GrainPlacement, IActivationSite> _siteFac;
-        Func<IActivation> _actCreator;
+        Func<GrainPlacement, IActivation> _actFac;
         ActivationHub _hub;
         
 
@@ -26,7 +26,7 @@ namespace FakeOrleans.Tests
         public void SetUp() {
             _placement = CreatePlacement();
 
-            _actCreator = () => {
+            _actFac = (_) => {
                 var act = Substitute.For<IActivation>();
 
                 act.Perform(Arg.Any<Func<IActivation, Task<IActivation>>>(), Arg.Any<RequestMode>())
@@ -37,7 +37,7 @@ namespace FakeOrleans.Tests
             
             _siteFac = Substitute.For<Func<GrainPlacement, IActivationSite>>();
             _siteFac(Arg.Any<GrainPlacement>())
-                .Returns(_ => new ActivationSite(_actCreator)); //reliant on ActivationSite
+                .Returns(_ => new ActivationSite(_actFac)); //reliant on ActivationSite
 
             _hub = new ActivationHub(_siteFac);
         }
@@ -61,7 +61,7 @@ namespace FakeOrleans.Tests
 
             _siteFac.Received(1)(Arg.Is(_placement));            
         }
-
+        
         
         [Test]
         public async Task Dispatch_DelegatesToRelevantActivationSite() 

@@ -9,43 +9,47 @@ using System.Threading.Tasks;
 
 namespace FakeOrleans.Grains
 {
-    public interface IGrainCreator
+
+    public interface IActivation
     {
-        Task<Grain> Activate(IActivation act);
+        Grain Grain { get; }
+        Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
+        Task Deactivate();
     }
-    
+
+
 
     public class Activation : IActivation
     {
-        readonly IGrainCreator _creator;
+        readonly GrainPlacement _placement;
         readonly IRequestRunner _runner;
-
-        public Activation(IGrainCreator creator, IRequestRunner runner) {
-            _creator = creator;
-            _runner = runner;
-            Receivers = new StreamReceiverRegistry(new FakeSerializer(new GrainContext(null, this))); //!!!!!!!
-        }
-
-
+        readonly Func<IActivation, Grain> _grainFac;
+        
         Grain _grain = null;
 
-        public Grain Grain {
-            get { return _grain; }
+        public Activation(GrainPlacement placement, IRequestRunner runner, Func<IActivation, Grain> grainFac) {
+            _placement = placement;
+            _runner = runner;
+            _grainFac = grainFac;
         }
+        
 
-
-        public StreamReceiverRegistry Receivers { get; private set; }
+        public Grain Grain {
+            get { return _grain; } //DEBUG ONLY???
+        }
 
 
 
         SemaphoreSlim _sm = new SemaphoreSlim(1);
 
-        public async Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) {
+        public async Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
+        {
             await _sm.WaitAsync();
 
             try {
                 if(_grain == null) {
-                    _grain = await _runner.Perform(() => _creator.Activate(this), RequestMode.Isolated);
+                    _grain = _grainFac(this); //await _grainFac.Create(_placement, this);
+                    await _runner.Perform(() => _grain.OnActivateAsync().Box(), RequestMode.Isolated);
                 }
             }
             finally {
@@ -55,12 +59,16 @@ namespace FakeOrleans.Grains
             return await _runner.Perform(() => fn(this), mode);
         }
 
+
         public Task Deactivate() {
             _runner.PerformAndClose(() => Grain.OnDeactivateAsync());
             return Task.CompletedTask;
         }
 
     }
+
+
+
 
 
     public static class ActivationExtensions

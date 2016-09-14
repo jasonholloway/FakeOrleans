@@ -50,11 +50,30 @@ namespace FakeOrleans
             Providers = new ProviderRegistry(this);
 
 
-            var hub = new ActivationHub(null);
+
+            var grainCreator = new GrainFac(Services);
+
+
+            var actFac = new Func<GrainPlacement, IActivation>(
+                                placement => {
+                                    var scheduler = new GrainTaskScheduler(Scheduler, Exceptions);
+                                    var runner = new RequestRunner(scheduler, Exceptions, Requests, true);
+                                    
+                                    return new Activation(placement, runner, null);
+                                });
+            
+            var siteFac = new Func<GrainPlacement, IActivationSite>(
+                                placement => {
+                                    var site = new ActivationSite(actFac);
+                                    site.Init(placement);
+                                    return site;
+                                });
+            
+            var hub = new ActivationHub(siteFac);
 
             Grains = hub;
-            Dispatcher = new Dispatcher(null, hub);
-
+            
+            Dispatcher = new Dispatcher(k => new GrainPlacement(k), hub);
             Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }
 

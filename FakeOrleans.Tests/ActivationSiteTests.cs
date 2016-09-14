@@ -27,7 +27,7 @@ namespace FakeOrleans.Tests
             var activation = Substitute.For<IActivation>();
             activation.Perform(Arg.Is(_fn)).Returns(guid);
             
-            var site = new ActivationSite(() => activation);
+            var site = new ActivationSite(_ => activation);
 
             var result = await site.Dispatch(_fn);
 
@@ -39,7 +39,8 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task ReactivatesWhenDeactivatedFound() 
         {
-            var guid = Guid.NewGuid();
+            var expectedReturnVal = Guid.NewGuid();
+            var placement = new GrainPlacement(new GrainKey(typeof(Grain), Guid.NewGuid()));
 
             var deadActivation = Substitute.For<IActivation>();
             deadActivation
@@ -47,16 +48,17 @@ namespace FakeOrleans.Tests
                 .Do(_ => { throw new DeactivatedException(); });
 
             var goodActivation = Substitute.For<IActivation>();
-            goodActivation.Perform(Arg.Is(_fn)).Returns(guid);
+            goodActivation.Perform(Arg.Is(_fn)).Returns(expectedReturnVal);
             
-            var actCreator = Substitute.For<Func<IActivation>>();
-            actCreator().Returns(deadActivation, goodActivation);
+            var actCreator = Substitute.For<Func<GrainPlacement, IActivation>>();
+            actCreator(Arg.Is(placement)).Returns(deadActivation, goodActivation);
             
             var site = new ActivationSite(actCreator);
+            site.Init(placement);
 
             var result = await site.Dispatch(_fn);
 
-            Assert.That(result, Is.EqualTo(guid));
+            Assert.That(result, Is.EqualTo(expectedReturnVal));
         }
 
 
@@ -65,7 +67,7 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task SameActivationUsedIfGood() 
         {
-            var actCreator = new Func<IActivation>(() => {
+            var actCreator = new Func<GrainPlacement, IActivation>(p => {
                                         var act = Substitute.For<IActivation>();
                                         act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
                                         return act;
@@ -86,11 +88,11 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task ReactivatesOneAtATimeViaLock() 
         {
-            var actCreator = new Func<IActivation>(() => {
-                var act = Substitute.For<IActivation>();
-                act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
-                return act;
-            });
+            var actCreator = new Func<GrainPlacement, IActivation>(p => {
+                                    var act = Substitute.For<IActivation>();
+                                    act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
+                                    return act;
+                                });
 
             var site = new ActivationSite(actCreator);
 
