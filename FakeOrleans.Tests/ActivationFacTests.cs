@@ -37,7 +37,7 @@ namespace MockOrleans.Tests
             
             //grainruntime too - but this is to be used by grainfac
 
-            var act = new Activation(_grainFac, runner);
+            var act = new Activation(placement, runner,  _grainFac);
             act.Init(placement);
 
             return act;

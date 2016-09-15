@@ -123,9 +123,9 @@ namespace FakeOrleans.Grains
             => Requests.Perform(() => fn(this), mode);
 
 
-        StreamReceiverRegistry IActivation.Receivers {
-            get { return StreamReceivers; }
-        }
+        //StreamReceiverRegistry IActivation.Receivers {
+        //    get { return StreamReceivers; }
+        //}
 
 
 

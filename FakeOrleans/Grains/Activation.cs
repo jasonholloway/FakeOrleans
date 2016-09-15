@@ -9,13 +9,21 @@ using System.Threading.Tasks;
 
 namespace FakeOrleans.Grains
 {
-
+    
     public interface IActivation
     {
         Grain Grain { get; }
+        ActivationStatus Status { get; }
+        
+        GrainPlacement Placement { get; }
+        MockTimerRegistry Timers { get; }
+        StreamReceiverRegistry Receivers { get; }
+        
         Task<TResult> Perform<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
         Task Deactivate();
     }
+
+
 
 
     public enum ActivationStatus
@@ -29,27 +37,34 @@ namespace FakeOrleans.Grains
 
     public class Activation : IActivation
     {
-        readonly GrainPlacement _placement;
         readonly IRequestRunner _runner;
-        readonly Func<IActivation, Grain> _grainFac;
+        readonly GrainFac _grainFac;
         
-        Grain _grain = null;
+        public Activation(GrainPlacement placement, IRequestRunner runner, GrainFac grainFac) 
+        {
+            Placement = placement;
 
-        public Activation(GrainPlacement placement, IRequestRunner runner, Func<IActivation, Grain> grainFac) {
-            _placement = placement;
             _runner = runner;
             _grainFac = grainFac;
+
+            Timers = new MockTimerRegistry(null); //!!!!!!!!!
+            Receivers = new StreamReceiverRegistry(null); //!!!!!!!!!!
         }
 
 
-        Grain _grain = null;
-        volatile ActivationStatus _status = ActivationStatus.Unactivated;
+        public GrainPlacement Placement { get; private set; }
+        public MockTimerRegistry Timers { get; private set; }
+        public StreamReceiverRegistry Receivers { get; private set; }
 
-        
+
+        Grain _grain = null;
 
         public Grain Grain {
             get { return _grain; } //DEBUG ONLY???
         }
+
+
+        volatile ActivationStatus _status = ActivationStatus.Unactivated;
 
         public ActivationStatus Status {
             get { return _status; }
@@ -70,10 +85,12 @@ namespace FakeOrleans.Grains
                     }
 
                     if(_grain == null) {
-                    	_grain = _grainFac(this); //await _grainFac.Create(_placement, this);
+                        _grain = _grainFac.Create(Placement, this, null);
+
                     	await _runner.Perform(async () => {
 												await _grain.OnActivateAsync();
-												_status = ActivationStatus.Activated; 
+												_status = ActivationStatus.Activated;
+                                                return true;
 											}, RequestMode.Isolated);
 					}
                 }

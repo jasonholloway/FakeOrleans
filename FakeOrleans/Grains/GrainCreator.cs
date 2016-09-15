@@ -22,7 +22,7 @@ namespace FakeOrleans.Grains
 
     public interface IGrainFac
     {
-        Task<Grain> Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime);
+        Grain Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime);
     }
 
 
@@ -36,7 +36,7 @@ namespace FakeOrleans.Grains
             _services = services;    
         }
         
-        public Task<Grain> Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime) 
+        public Grain Create(GrainPlacement placement, IActivation act, IGrainRuntime runtime) 
         {
             var key = placement.Key;
             var grainType = key.ConcreteType;
