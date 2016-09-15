@@ -35,6 +35,9 @@ namespace FakeOrleans
 
 
 
+        readonly FixtureCtx _ctx;
+
+
         public Fixture(IServiceProvider services = null) 
         {
             Serializer = new FakeSerializer(this);
@@ -49,6 +52,21 @@ namespace FakeOrleans
             Reminders = new ReminderRegistry(this);
             Providers = new ProviderRegistry(this);
 
+
+            //like there's an inner fixture context, and an outer one
+
+
+            var exceptions = new ExceptionSink();
+            var scheduler = new FixtureScheduler(exceptions);
+
+            _ctx = new FixtureCtx() {
+                Exceptions = exceptions,
+                Scheduler = scheduler,
+                Runner = new RequestRunner(scheduler, exceptions),
+                Services = new ServiceRegistry(services),
+                Reminders = 
+
+            };
 
 
             var grainCreator = new GrainFac(Services);

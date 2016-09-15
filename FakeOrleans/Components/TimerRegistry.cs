@@ -16,12 +16,12 @@ namespace FakeOrleans
 
     public class MockTimerRegistry : ITimerRegistry, IDisposable
     {
-        GrainHarness _harness;
+        TaskScheduler _scheduler;
         List<Timer> _timers = new List<Timer>();
 
 
-        public MockTimerRegistry(GrainHarness harness) {
-            _harness = harness;
+        public MockTimerRegistry(TaskScheduler scheduler) {
+            _scheduler = scheduler;
         }
 
 
@@ -31,12 +31,12 @@ namespace FakeOrleans
         class Timer : IDisposable
         {
             Func<Task> _fn;
-            GrainHarness _harness;
+            TaskScheduler _scheduler;
             CancellationTokenSource _cancelSource;
             CancellationToken _cancelToken;
 
-            public Timer(GrainHarness harness, Func<Task> fn) {
-                _harness = harness;
+            public Timer(TaskScheduler scheduler, Func<Task> fn) {
+                _scheduler = scheduler;
                 _fn = fn;
                 _cancelSource = new CancellationTokenSource();
                 _cancelToken = _cancelSource.Token;
@@ -46,7 +46,7 @@ namespace FakeOrleans
                 if(_cancelToken.IsCancellationRequested) return;
 
                 var task = Task.Delay(delay, _cancelToken)
-                                .ContinueWith(_ => _fn(), _cancelToken, TaskContinuationOptions.None, _harness.Scheduler)
+                                .ContinueWith(_ => _fn(), _cancelToken, TaskContinuationOptions.None, _scheduler)
                                 .Unwrap();
 
                 if(period > TimeSpan.Zero) {
@@ -67,7 +67,7 @@ namespace FakeOrleans
 
 
         public IDisposable RegisterTimer(Grain grain, Func<object, Task> fn, object state, TimeSpan dueTime, TimeSpan period) {
-            var timer = new Timer(_harness, () => fn(state));
+            var timer = new Timer( _scheduler, () => fn(state));
             lock(_timers) _timers.Add(timer);
 
             timer.Run(dueTime, period);

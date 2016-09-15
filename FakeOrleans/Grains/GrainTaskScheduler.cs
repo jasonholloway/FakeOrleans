@@ -17,7 +17,7 @@ namespace FakeOrleans.Grains
 
     public class GrainTaskScheduler : TaskScheduler, IDisposable
     {
-        TaskScheduler _innerScheduler;
+        TaskScheduler _outerScheduler;
         ExceptionSink _exceptionSink;
 
         object _sync = new object();
@@ -25,8 +25,8 @@ namespace FakeOrleans.Grains
         CancellationTokenSource _cancelSource;
         CancellationToken _cancelToken;
 
-        public GrainTaskScheduler(TaskScheduler innerScheduler, ExceptionSink exceptionSink) {
-            _innerScheduler = innerScheduler;
+        public GrainTaskScheduler(TaskScheduler outerScheduler, ExceptionSink exceptionSink) {
+            _outerScheduler = outerScheduler;
             _exceptionSink = exceptionSink;
             _cancelSource = new CancellationTokenSource();
             _cancelToken = _cancelSource.Token;
@@ -51,7 +51,7 @@ namespace FakeOrleans.Grains
                             if(task.IsFaulted) {
                                 _exceptionSink.Add(task.Exception); //need to distinguish between loose and handled exceptions
                             }
-                        }, _cancelToken, TaskContinuationOptions.None, _innerScheduler); //catch exceptions also?                
+                        }, _cancelToken, TaskContinuationOptions.None, _outerScheduler); //catch exceptions also?                
             }
         }
 

@@ -1,145 +1,145 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Orleans;
-using System.Collections.Concurrent;
-using System.Threading;
-using FakeOrleans.Grains;
-using System.Collections.ObjectModel;
+﻿//using System;
+//using System.Collections.Generic;
+//using System.Linq;
+//using System.Text;
+//using System.Threading.Tasks;
+//using Orleans;
+//using System.Collections.Concurrent;
+//using System.Threading;
+//using FakeOrleans.Grains;
+//using System.Collections.ObjectModel;
 
-namespace FakeOrleans
-{
+//namespace FakeOrleans
+//{
     
 
 
-    //public static class GrainPlacementExtensions
-    //{
-    //    public static Task<GrainHarness> GetActivation(this GrainPlacement placement)
-    //        => placement.Registry.GetActivation(placement);       
+//    //public static class GrainPlacementExtensions
+//    //{
+//    //    public static Task<GrainHarness> GetActivation(this GrainPlacement placement)
+//    //        => placement.Registry.GetActivation(placement);       
 
-    //}
-
-
-    public static class GrainRegistryExtensions {
-
-        //public static GrainPlacement GetPlacement<TGrain>(this GrainRegistry reg, Guid id)
-        //    where TGrain : IGrainWithGuidKey
-        //    => reg.GetPlacement(reg.GetKey<TGrain>(id));
+//    //}
 
 
-        //public static Task<GrainHarness> GetActivation(this GrainRegistry reg, GrainKey key)
-        //    => reg.GetPlacement(key).GetActivation();
+//    public static class GrainRegistryExtensions {
+
+//        //public static GrainPlacement GetPlacement<TGrain>(this GrainRegistry reg, Guid id)
+//        //    where TGrain : IGrainWithGuidKey
+//        //    => reg.GetPlacement(reg.GetKey<TGrain>(id));
 
 
-        //public static Task<GrainHarness> GetActivation<TGrain>(this GrainRegistry reg, Guid id)
-        //    where TGrain : IGrainWithGuidKey
-        //    => reg.GetPlacement<TGrain>(id).GetActivation();
+//        //public static Task<GrainHarness> GetActivation(this GrainRegistry reg, GrainKey key)
+//        //    => reg.GetPlacement(key).GetActivation();
+
+
+//        //public static Task<GrainHarness> GetActivation<TGrain>(this GrainRegistry reg, Guid id)
+//        //    where TGrain : IGrainWithGuidKey
+//        //    => reg.GetPlacement<TGrain>(id).GetActivation();
 
 
 
 
-        //public static GrainKey GetKey<TGrain>(this GrainRegistry reg, Guid id)
-        //    where TGrain : IGrainWithGuidKey
-        //{
-        //    var grainType = reg.Fixture.Types.GetConcreteType(typeof(TGrain));
-        //    return new GrainKey(grainType, id);
-        //}
+//        //public static GrainKey GetKey<TGrain>(this GrainRegistry reg, Guid id)
+//        //    where TGrain : IGrainWithGuidKey
+//        //{
+//        //    var grainType = reg.Fixture.Types.GetConcreteType(typeof(TGrain));
+//        //    return new GrainKey(grainType, id);
+//        //}
         
-    }
+//    }
 
 
 
 
-    public class GrainRegistry
-    {
-        public Fixture Fixture { get; private set; }
+//    public class GrainRegistry
+//    {
+//        public Fixture Fixture { get; private set; }
         
-        ConcurrentDictionary<GrainPlacement, GrainHarness> _dActivations;
+//        ConcurrentDictionary<GrainPlacement, GrainHarness> _dActivations;
 
 
-        public GrainRegistry(Fixture fx) {
-            Fixture = fx;
-            //Harnesses = new ConcurrentDictionary<GrainKey, GrainHarness>(GrainKeyComparer.Instance);
-            _dActivations = new ConcurrentDictionary<GrainPlacement, GrainHarness>();
-        }
+//        public GrainRegistry(Fixture fx) {
+//            Fixture = fx;
+//            //Harnesses = new ConcurrentDictionary<GrainKey, GrainHarness>(GrainKeyComparer.Instance);
+//            _dActivations = new ConcurrentDictionary<GrainPlacement, GrainHarness>();
+//        }
                 
         
         
 
 
-        public async Task<GrainHarness> GetActivation(GrainPlacement placement) 
-        {
-            var harness = _dActivations.AddOrUpdate(
-                                            placement,
-                                            p => new GrainHarness(Fixture, p),
-                                            (p, h) => /*h.IsDead*/ true ? new GrainHarness(Fixture, p) : h);
+//        public async Task<GrainHarness> GetActivation(GrainPlacement placement) 
+//        {
+//            var harness = _dActivations.AddOrUpdate(
+//                                            placement,
+//                                            p => new GrainHarness(Fixture, p),
+//                                            (p, h) => /*h.IsDead*/ true ? new GrainHarness(Fixture, p) : h);
             
 
-            await harness.Activate(); //but if dying? No problem, will sail through - problem is only assailable at point of Request.Perform - ie later
+//            await harness.Activate(); //but if dying? No problem, will sail through - problem is only assailable at point of Request.Perform - ie later
 
-            return harness;
-        }
-
-
+//            return harness;
+//        }
 
 
 
 
 
 
-        //public TGrain Inject<TGrain>(GrainKey key, TGrain grain)
-        //    where TGrain : class, IGrain 
-        //{
-        //    var placement = GetPlacement(key);
+
+
+//        //public TGrain Inject<TGrain>(GrainKey key, TGrain grain)
+//        //    where TGrain : class, IGrain 
+//        //{
+//        //    var placement = GetPlacement(key);
             
-        //    GrainHarness oldActivation = null;
+//        //    GrainHarness oldActivation = null;
             
-        //    _dActivations.AddOrUpdate(placement,
-        //                p => new GrainHarness(Fixture, p, grain),
-        //                (p, old) => {
-        //                    oldActivation = old;
-        //                    return new GrainHarness(Fixture, p, grain);
-        //                });
+//        //    _dActivations.AddOrUpdate(placement,
+//        //                p => new GrainHarness(Fixture, p, grain),
+//        //                (p, old) => {
+//        //                    oldActivation = old;
+//        //                    return new GrainHarness(Fixture, p, grain);
+//        //                });
 
-        //    if(oldActivation != null) {
-        //        Fixture.Requests.Perform(async () => {
-        //            await oldActivation.DeactivateWhenIdle();
-        //            oldActivation.Dispose();
-        //        });
-        //    }
+//        //    if(oldActivation != null) {
+//        //        Fixture.Requests.Perform(async () => {
+//        //            await oldActivation.DeactivateWhenIdle();
+//        //            oldActivation.Dispose();
+//        //        });
+//        //    }
 
-        //    var resolvedKey = new ResolvedGrainKey(typeof(TGrain), key.ConcreteType, key.Key);
+//        //    var resolvedKey = new ResolvedGrainKey(typeof(TGrain), key.ConcreteType, key.Key);
 
-        //    return (TGrain)(object)Fixture.GetGrainProxy(resolvedKey);
-        //}
-
-
+//        //    return (TGrain)(object)Fixture.GetGrainProxy(resolvedKey);
+//        //}
 
 
-        public async Task Deactivate(GrainPlacement placement) 
-        {
-            GrainHarness activation;
 
-            if(_dActivations.TryRemove(placement, out activation)) {
-                activation.Deactivate();
-                //activation.Dispose();
-            }
-        }
+
+//        public async Task Deactivate(GrainPlacement placement) 
+//        {
+//            GrainHarness activation;
+
+//            if(_dActivations.TryRemove(placement, out activation)) {
+//                activation.Deactivate();
+//                //activation.Dispose();
+//            }
+//        }
                 
 
-        public void DeactivateAll() 
-        {
-            var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
+//        public void DeactivateAll() 
+//        {
+//            var captured = Interlocked.Exchange(ref _dActivations, new ConcurrentDictionary<GrainPlacement, GrainHarness>());
 
-            captured.Values.ForEach(a => {
-                a.Deactivate();
-                //a.Dispose();
-            });
-        }
+//            captured.Values.ForEach(a => {
+//                a.Deactivate();
+//                //a.Dispose();
+//            });
+//        }
 
         
 
-    }
-}
+//    }
+//}

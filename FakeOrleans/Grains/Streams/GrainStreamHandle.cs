@@ -9,29 +9,22 @@ using System.Threading.Tasks;
 
 namespace FakeOrleans.Grains
 {
-
-
+    
     [Serializable]
     public class GrainStreamHandle<T> : StreamSubscriptionHandle<T>, ISerializable
     {
         public readonly Stream.SubKey SubscriptionKey;
+        readonly ActivationCtx _ctx;
 
-        readonly StreamRegistry _streamReg;
-        readonly IActivation _activation;
-
-        public GrainStreamHandle(Stream.SubKey subKey, IActivation activation, StreamRegistry streamReg) {
+        public GrainStreamHandle(Stream.SubKey subKey, ActivationCtx ctx) {
             SubscriptionKey = subKey;
-            _activation = activation;
-            _streamReg = streamReg;
+            _ctx = ctx;
         }
 
         protected GrainStreamHandle(SerializationInfo info, StreamingContext context) {
-            var ctx = context.Context as GrainContext;
-            Require.NotNull(ctx, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
-
-            _streamReg = ctx.Fixture.Streams;
-            _activation = ctx.Activation;
-
+            _ctx = context.Context as ActivationCtx;
+            Require.NotNull(_ctx, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
+            
             SubscriptionKey = (Stream.SubKey)info.GetValue("subKey", typeof(Stream.SubKey));
         }
 
@@ -46,17 +39,17 @@ namespace FakeOrleans.Grains
 
         public override Task<StreamSubscriptionHandle<T>> ResumeAsync(IAsyncObserver<T> observer, StreamSequenceToken token = null) 
         {            
-            _activation.Receivers.Register(SubscriptionKey, observer);
+            _ctx.Receivers.Register(SubscriptionKey, observer);
             return Task.FromResult((StreamSubscriptionHandle<T>)this);
         }
 
         public override Task UnsubscribeAsync() 
         {            
-            var stream = _streamReg.GetStream(SubscriptionKey.StreamKey);
+            var stream = _ctx.Fixture.Streams.GetStream(SubscriptionKey.StreamKey);
 
             stream.Unsubscribe(SubscriptionKey);
             
-            _activation.Receivers.Unregister(SubscriptionKey);
+            _ctx.Receivers.Unregister(SubscriptionKey);
 
             return Task.CompletedTask;
         }

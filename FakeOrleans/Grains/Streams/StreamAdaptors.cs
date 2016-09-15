@@ -17,20 +17,18 @@ namespace FakeOrleans.Streams
         public string Name { get; private set; }
         public bool IsRewindable { get; } = false;
 
-        StreamRegistry _streamReg;
-        GrainHarness _activation;
+        readonly ActivationCtx _ctx;
         
-        public GrainStreamProviderAdaptor(GrainHarness activation, StreamRegistry streamReg, string providerName) {
+        public GrainStreamProviderAdaptor(ActivationCtx ctx, string providerName) {
+            _ctx = ctx;
             Name = providerName;
-            _streamReg = streamReg;
-            _activation = activation;
         }
         
         public IAsyncStream<T> GetStream<T>(Guid streamId, string streamNamespace) 
         {
             var key = new StreamKey(Name, streamNamespace, streamId);
             
-            var stream = _streamReg.GetStream(key);
+            var stream = _ctx.Fixture.Streams.GetStream(key);
                         
             return new GrainStreamClient<T>(_activation, stream, _streamReg);
         }
@@ -49,16 +47,14 @@ namespace FakeOrleans.Streams
     
     class StreamProviderManagerAdaptor : IStreamProviderManager
     {
-        GrainHarness _activation;
-        StreamRegistry _streamReg;
+        readonly ActivationCtx _ctx;
 
-        public StreamProviderManagerAdaptor(GrainHarness activation, StreamRegistry streamReg) {
-            _activation = activation;
-            _streamReg = streamReg;
+        public StreamProviderManagerAdaptor(ActivationCtx ctx) {
+            _ctx = ctx;
         }
 
         public IProvider GetProvider(string name)
-            => new GrainStreamProviderAdaptor(_activation, _streamReg, name);
+            => new GrainStreamProviderAdaptor(_ctx, name);
 
 
         public IEnumerable<IStreamProvider> GetStreamProviders() {

@@ -13,29 +13,29 @@ namespace FakeOrleans
 {
 
     
-    public interface ISerializationContext
-    { }
+    //public interface ISerializationContext
+    //{ }
 
 
-    public class FixtureContext : ISerializationContext
-    {
-        public readonly Fixture Fixture;
+    //public class FixtureContext : ISerializationContext
+    //{
+    //    public readonly Fixture Fixture;
 
-        public FixtureContext(Fixture fx) {
-            Fixture = fx;
-        }
-    }
+    //    public FixtureContext(Fixture fx) {
+    //        Fixture = fx;
+    //    }
+    //}
 
 
-    public class GrainContext : FixtureContext
-    {
-        public readonly IActivation Activation;
+    //public class GrainContext : FixtureContext
+    //{
+    //    public readonly IActivation Activation;
 
-        public GrainContext(Fixture fx, IActivation activation) 
-            : base(fx) {
-            Activation = activation;
-        }
-    }
+    //    public GrainContext(Fixture fx, IActivation activation) 
+    //        : base(fx) {
+    //        Activation = activation;
+    //    }
+    //}
 
 
 
@@ -141,7 +141,7 @@ namespace FakeOrleans
 
             public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
             {
-                var ctx = context.Context as FixtureContext;
+                var ctx = context.Context as FixtureCtx;
                 
                 if(ctx == null) {
                     throw new SerializationException("Can't deserialize GrainProxy without FixtureContext!");

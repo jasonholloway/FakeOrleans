@@ -11,16 +11,14 @@ namespace FakeOrleans.Grains
 
     public class GrainStreamClient<T> : IAsyncStream<T>
     {
-        GrainHarness _activation;
-        GrainKey _grainKey;
-        Stream _stream;
-        StreamRegistry _streamReg;
+        readonly ActivationCtx _ctx;
+        readonly GrainKey _grainKey;
+        readonly Stream _stream;
 
-        public GrainStreamClient(GrainHarness activation, Stream stream, StreamRegistry streamReg) {
-            _activation = activation;
-            _grainKey = _activation.Placement.Key;
+        public GrainStreamClient(ActivationCtx ctx, Stream stream) {
+            _ctx = ctx;
+            _grainKey = _ctx.Placement.Key;
             _stream = stream;
-            _streamReg = streamReg;
         }
 
         public Guid Guid {
@@ -54,7 +52,7 @@ namespace FakeOrleans.Grains
             => _stream.OnError(ex);
 
         public Task OnNextAsync(T item, StreamSequenceToken token = null)
-            => _stream.OnNext(_activation.Serializer.Serialize(item), token);
+            => _stream.OnNext(_ctx.Serializer.Serialize(item), token);
 
         public Task OnNextBatchAsync(IEnumerable<T> batch, StreamSequenceToken token = null) { 
             throw new NotImplementedException();
@@ -77,9 +75,9 @@ namespace FakeOrleans.Grains
 
             var subKey = _stream.Subscribe(_grainKey);
 
-            _activation.StreamReceivers.Register(subKey, observer);
+            _ctx.Receivers.Register(subKey, observer);
 
-            var handle = new GrainStreamHandle<T>(subKey, _activation, _streamReg);
+            var handle = new GrainStreamHandle<T>(subKey, _ctx);
 
             return Task.FromResult((StreamSubscriptionHandle<T>)handle);
         }
