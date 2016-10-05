@@ -11,10 +11,12 @@ namespace FakeOrleans.Grains
 
     public class FakeGrainFactory : IGrainFactory
     {
-        Fixture _fx;
+        readonly TypeMap _types;
+        readonly Func<ResolvedGrainKey, IGrain> _proxifier;
         
-        public FakeGrainFactory(Fixture fx) {
-            _fx = fx;
+        public FakeGrainFactory(TypeMap types, Func<ResolvedGrainKey, IGrain> proxifier) {
+            _types = types;
+            _proxifier = proxifier;
         }
 
         
@@ -24,11 +26,11 @@ namespace FakeOrleans.Grains
             Require.That(grainClassNamePrefix == null);
 
             var tAbstract = typeof(TGrainInterface);
-            var tConcrete = _fx.Types.GetConcreteType(tAbstract);
+            var tConcrete = _types.GetConcreteType(tAbstract);
 
             var key = new ResolvedGrainKey(tAbstract, tConcrete, primaryKey);
 
-            return (TGrainInterface)(object)_fx.GetGrainProxy(key);
+            return (TGrainInterface)_proxifier(key);
         }
 
         

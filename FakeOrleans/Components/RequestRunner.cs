@@ -33,7 +33,7 @@ namespace FakeOrleans
     {
         TaskScheduler _scheduler;
         ExceptionSink _exceptionSink;
-        RequestRunner _innerReqs;
+        RequestRunner _outerReqs;
         int _count;
         Queue<TaskCompletionSource<bool>> _whenIdleTaskSources;
         Queue<TaskCompletionSource<bool>> _whenInnerClearTaskSources;
@@ -59,10 +59,10 @@ namespace FakeOrleans
 
 
 
-        public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner innerReqs = null, bool isolate = false) {
+        public RequestRunner(TaskScheduler scheduler, ExceptionSink exceptionSink, RequestRunner outerReqs = null, bool isolate = false) {
             _scheduler = scheduler;
             _exceptionSink = exceptionSink;
-            _innerReqs = innerReqs;
+            _outerReqs = outerReqs;
             _whenIdleTaskSources = new Queue<TaskCompletionSource<bool>>();
             _whenInnerClearTaskSources = new Queue<TaskCompletionSource<bool>>();
             _whenClosedTaskSources = new Queue<TaskCompletionSource<bool>>();
@@ -77,7 +77,7 @@ namespace FakeOrleans
                 _count++;
             }
 
-            _innerReqs?.Enter();
+            _outerReqs?.Enter();
         }
 
 
@@ -146,7 +146,7 @@ namespace FakeOrleans
 
             if(closeNow) RunClose();
 
-            _innerReqs?.Leave();
+            _outerReqs?.Leave();
             capturedTaskSources?.ForEach(ts => ts.SetResult(true));
         }
 

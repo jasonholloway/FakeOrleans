@@ -69,6 +69,7 @@
     <Compile Include="Components\FixtureScheduler.cs" />
     <Compile Include="Components\ActivationHub.cs" />
     <Compile Include="Components\Placer.cs" />
+    <Compile Include="Components\ProviderRuntimeAdaptor.cs" />
     <Compile Include="Components\RequestRunner.cs" />
     <Compile Include="Components\ServiceRegistry.cs" />
     <Compile Include="Grains\Activation.cs" />

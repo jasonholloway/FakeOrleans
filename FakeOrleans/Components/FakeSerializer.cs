@@ -1,5 +1,6 @@
 ﻿using FakeOrleans.Grains;
 using FakeOrleans.Streams;
+using Orleans;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,16 +50,35 @@ namespace FakeOrleans
 
 
 
+
+    public class FakeSerializerCtx
+    {
+        public readonly Func<ResolvedGrainKey, IGrain> Proxifier;
+
+        public FakeSerializerCtx(Func<ResolvedGrainKey, IGrain> proxifier) {
+            Proxifier = proxifier;
+        }
+    }
+
+
+
+    public class FakeDeserializer
+    {
+
+    }
+
+
+    
     public class FakeSerializer
     {
-        object _ctx;        
-        ISurrogateSelector _surrogateSelector;
+        readonly Func<ResolvedGrainKey, IGrain> _proxifier;
+        readonly ISurrogateSelector _surrogateSelector;
 
-        public FakeSerializer(object ctx) {
-            _ctx = ctx;
+        public FakeSerializer(Func<ResolvedGrainKey, IGrain> proxifier) {
+            _proxifier = proxifier;
             _surrogateSelector = new GrainAwareSurrogateSelector();
         }
-
+                
 
         public byte[] Serialize(object inp) 
         {
@@ -66,7 +86,7 @@ namespace FakeOrleans
 
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
-                                    new StreamingContext(StreamingContextStates.All, _ctx));
+                                    new StreamingContext(StreamingContextStates.All, new FakeSerializerCtx(_proxifier)));
 
             using(var str = new MemoryStream()) {
                 formatter.Serialize(str, inp);
@@ -82,7 +102,7 @@ namespace FakeOrleans
 
             var formatter = new BinaryFormatter(
                                     _surrogateSelector, 
-                                    new StreamingContext(StreamingContextStates.All, _ctx));
+                                    new StreamingContext(StreamingContextStates.All, new FakeSerializerCtx(_proxifier)));
 
             using(var str = new MemoryStream(bytes)) {
                 return formatter.Deserialize(str);
@@ -141,15 +161,15 @@ namespace FakeOrleans
 
             public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
             {
-                var ctx = context.Context as FixtureCtx;
+                var ctx = context.Context as FakeSerializerCtx;
                 
                 if(ctx == null) {
-                    throw new SerializationException("Can't deserialize GrainProxy without FixtureContext!");
+                    throw new SerializationException($"Can't deserialize GrainProxy without {nameof(FakeSerializerCtx)}!");
                 }
                 
                 var key = (ResolvedGrainKey)info.GetValue("key", typeof(ResolvedGrainKey));
 
-                return ctx.Fixture.GetGrainProxy(key);
+                return ctx.Proxifier(key);
             }
         }
 

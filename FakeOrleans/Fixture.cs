@@ -2,6 +2,7 @@
 using FakeOrleans.Grains;
 using FakeOrleans.Reminders;
 using FakeOrleans.Streams;
+using MockOrleans.Components;
 using Orleans;
 using System;
 using System.Collections.Concurrent;
@@ -30,78 +31,64 @@ namespace FakeOrleans
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
 
-        public readonly IGrainSet Grains;
+        public readonly IGrainSet Activations;
         public readonly IDispatcher Dispatcher;
-
-
-
-        readonly FixtureCtx _ctx;
-
+                
 
         public Fixture(IServiceProvider services = null) 
         {
-            Serializer = new FakeSerializer(this);
+            var proxifier = new Func<ResolvedGrainKey, IGrain>(
+                                   key => (IGrain)GrainProxy.Proxify(this, key)); //just needs dispatcher and serializer
+                                                
             Exceptions = new ExceptionSink();
             Scheduler = new FixtureScheduler(Exceptions);
-            Requests = new RequestRunner(Scheduler, Exceptions);
-            Services = new ServiceRegistry(services);          
-            Types = new TypeMap(this);
-            GrainFactory = new FakeGrainFactory(this);
+            Serializer = new FakeSerializer(proxifier);
+            Types = new TypeMap();
+            GrainFactory = new FakeGrainFactory(Types, proxifier);
+            Requests = new RequestRunner(Scheduler, Exceptions);            
+            Services = new ServiceRegistry(services);
             Stores = new StorageRegistry(Serializer);
+            Providers = new ProviderRegistry(() => new ProviderRuntimeAdaptor(GrainFactory, Services, null));
 
             Reminders = new ReminderRegistry(this);
-            Providers = new ProviderRegistry(this);
-
-
-            //like there's an inner fixture context, and an outer one
-
-
-            var exceptions = new ExceptionSink();
-            var scheduler = new FixtureScheduler(exceptions);
-
-            _ctx = new FixtureCtx() {
-                Exceptions = exceptions,
-                Scheduler = scheduler,
-                Runner = new RequestRunner(scheduler, exceptions),
-                Services = new ServiceRegistry(services),
-                Reminders = 
-
-            };
-
-
-            var grainCreator = new GrainFac(Services);
-
-
-            var actFac = new Func<GrainPlacement, IActivation>(
-                                placement => {
-                                    var scheduler = new GrainTaskScheduler(Scheduler, Exceptions);
-                                    var runner = new RequestRunner(scheduler, Exceptions, Requests, true);
-                                    
-                                    return new Activation(placement, runner, null);
-                                });
             
-            var siteFac = new Func<GrainPlacement, IActivationSite>(
-                                placement => {
-                                    var site = new ActivationSite(actFac);
-                                    site.Init(placement);
-                                    return site;
-                                });
+            Activations = new ActivationHub(place => {
+                                            var actSite = new ActivationSite(p => ActivationFac.Create(this, p));
+                                            actSite.Init(place);
+                                            return actSite;
+                                        });
             
-            var hub = new ActivationHub(siteFac);
-
-            Grains = hub;
-            
-            Dispatcher = new Dispatcher(k => new GrainPlacement(k), hub);
+            Dispatcher = new Dispatcher(k => new GrainPlacement(k), (IPlacementDispatcher)Activations);
             Streams = new StreamRegistry(Dispatcher, Requests, Types);
         }
 
-
-
-
-        public GrainProxy GetGrainProxy(ResolvedGrainKey key) {
-            return GrainProxy.Proxify(this, key);
-        }
-               
-
+        
     }
+
+
+
+
+
+    //public class FixtureCtx
+    //{
+    //    public TaskScheduler Scheduler;
+    //    public RequestRunner Runner;
+    //    public ExceptionSink Exceptions;
+    //    public IServiceProvider Services;
+    //    public IGrainFactory GrainFactory;
+    //    public ReminderRegistry Reminders;
+    //    public StreamRegistry Streams;
+    //    public StorageRegistry Store;
+    //    public FakeSerializer Serializer;
+    //    public ProviderRegistry Providers;
+    //    public TypeMap Types;
+
+    //    public Func<ResolvedGrainKey, IGrain> Proxifier;
+
+    //    public Func<FixtureCtx, GrainPlacement, IActivation> ActivationFac;
+    //    public Func<ActivationCtx, IActivation, Grain> GrainFac;
+    //}
+
+
+
 }

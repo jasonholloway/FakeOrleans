@@ -21,7 +21,7 @@ namespace FakeOrleans.Components
 
     public interface IGrainSet
     {
-        IActivation[] GetActivations();
+        IActivationDispatcher[] GetActivations();
     }
 
 
@@ -49,7 +49,7 @@ namespace FakeOrleans.Components
         }
 
 
-        public IActivation[] GetActivations() 
+        public IActivationDispatcher[] GetActivations() 
             => _dSites.Values.ToArray()
                     .Select(s => s.Activation)
                     .Where(a => a != null)

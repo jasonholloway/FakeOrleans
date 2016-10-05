@@ -22,12 +22,9 @@ namespace FakeOrleans
     {
         ConcurrentDictionary<Type, Type> _dMap = new ConcurrentDictionary<Type, Type>();
         Queue<Action<Type>> _qTypeProcessors = new Queue<Action<Type>>();
+        
 
-        Fixture _fx;
-
-
-        public TypeMap(Fixture fx) {
-            _fx = fx;
+        public TypeMap() {
         }
         
 

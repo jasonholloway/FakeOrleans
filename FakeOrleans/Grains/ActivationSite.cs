@@ -14,14 +14,14 @@ namespace FakeOrleans.Grains
 
     public interface IActivationProvider
     {
-        IActivation GetActivation();
+        IActivationDispatcher GetActivation();
     }
 
 
 
     public interface IActivationSite
     {
-        IActivation Activation { get; }
+        IActivationDispatcher Activation { get; }
         Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode);
     }
 
@@ -29,7 +29,7 @@ namespace FakeOrleans.Grains
 
     public class ActivationSite : IActivationSite
     {
-        readonly Func<GrainPlacement, IActivation>_actCreator;
+        readonly Func<GrainPlacement, IActivation> _actCreator;
 
         GrainPlacement _placement;
         IActivation _act = null;
@@ -58,7 +58,7 @@ namespace FakeOrleans.Grains
             }
 
             try {
-                return act.Perform(fn, mode);
+                return act.Dispatcher.Perform(fn, mode);
             }
             catch(DeactivatedException) {
                 lock(_sync) _act = null;

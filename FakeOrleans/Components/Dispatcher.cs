@@ -30,6 +30,10 @@ namespace FakeOrleans.Components
         public Task<TResult> Dispatch<TResult>(GrainKey key, Func<IActivation, Task<TResult>> fn) {
             var placement = _placer(key);
 
+            // one too many dispatchers, surely
+            //
+            //
+            
             return _innerDispatcher.Dispatch(placement, fn);
         }
 

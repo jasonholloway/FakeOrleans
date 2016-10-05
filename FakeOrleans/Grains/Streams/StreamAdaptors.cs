@@ -17,9 +17,9 @@ namespace FakeOrleans.Streams
         public string Name { get; private set; }
         public bool IsRewindable { get; } = false;
 
-        readonly ActivationCtx _ctx;
+        readonly Activation_New _ctx;
         
-        public GrainStreamProviderAdaptor(ActivationCtx ctx, string providerName) {
+        public GrainStreamProviderAdaptor(Activation_New ctx, string providerName) {
             _ctx = ctx;
             Name = providerName;
         }
@@ -30,7 +30,7 @@ namespace FakeOrleans.Streams
             
             var stream = _ctx.Fixture.Streams.GetStream(key);
                         
-            return new GrainStreamClient<T>(_activation, stream, _streamReg);
+            return new GrainStreamClient<T>(_ctx, stream);
         }
 
         #region IProvider
@@ -47,9 +47,9 @@ namespace FakeOrleans.Streams
     
     class StreamProviderManagerAdaptor : IStreamProviderManager
     {
-        readonly ActivationCtx _ctx;
+        readonly Activation_New _ctx;
 
-        public StreamProviderManagerAdaptor(ActivationCtx ctx) {
+        public StreamProviderManagerAdaptor(Activation_New ctx) {
             _ctx = ctx;
         }
 

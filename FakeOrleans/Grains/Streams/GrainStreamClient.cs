@@ -11,11 +11,11 @@ namespace FakeOrleans.Grains
 
     public class GrainStreamClient<T> : IAsyncStream<T>
     {
-        readonly ActivationCtx _ctx;
+        readonly Activation_New _ctx;
         readonly GrainKey _grainKey;
         readonly Stream _stream;
 
-        public GrainStreamClient(ActivationCtx ctx, Stream stream) {
+        public GrainStreamClient(Activation_New ctx, Stream stream) {
             _ctx = ctx;
             _grainKey = _ctx.Placement.Key;
             _stream = stream;

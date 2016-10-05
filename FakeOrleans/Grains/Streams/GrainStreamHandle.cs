@@ -14,16 +14,16 @@ namespace FakeOrleans.Grains
     public class GrainStreamHandle<T> : StreamSubscriptionHandle<T>, ISerializable
     {
         public readonly Stream.SubKey SubscriptionKey;
-        readonly ActivationCtx _ctx;
+        readonly Activation_New _act;
 
-        public GrainStreamHandle(Stream.SubKey subKey, ActivationCtx ctx) {
+        public GrainStreamHandle(Stream.SubKey subKey, Activation_New act) {
             SubscriptionKey = subKey;
-            _ctx = ctx;
+            _act = act;
         }
 
         protected GrainStreamHandle(SerializationInfo info, StreamingContext context) {
-            _ctx = context.Context as ActivationCtx;
-            Require.NotNull(_ctx, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
+            _act = context.Context as Activation_New;
+            Require.NotNull(_act, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
             
             SubscriptionKey = (Stream.SubKey)info.GetValue("subKey", typeof(Stream.SubKey));
         }
@@ -39,17 +39,17 @@ namespace FakeOrleans.Grains
 
         public override Task<StreamSubscriptionHandle<T>> ResumeAsync(IAsyncObserver<T> observer, StreamSequenceToken token = null) 
         {            
-            _ctx.Receivers.Register(SubscriptionKey, observer);
+            _act.Receivers.Register(SubscriptionKey, observer);
             return Task.FromResult((StreamSubscriptionHandle<T>)this);
         }
 
         public override Task UnsubscribeAsync() 
         {            
-            var stream = _ctx.Fixture.Streams.GetStream(SubscriptionKey.StreamKey);
+            var stream = _act.Fixture.Streams.GetStream(SubscriptionKey.StreamKey);
 
             stream.Unsubscribe(SubscriptionKey);
             
-            _ctx.Receivers.Unregister(SubscriptionKey);
+            _act.Receivers.Unregister(SubscriptionKey);
 
             return Task.CompletedTask;
         }

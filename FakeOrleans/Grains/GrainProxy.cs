@@ -11,7 +11,21 @@ using System.Collections.Concurrent;
 
 namespace FakeOrleans.Grains
 {
+    using Components;
     using FnProxifier = Func<Fixture, ResolvedGrainKey, GrainProxy>;
+
+
+
+    public class GrainProxyCtx
+    {
+        public readonly IDispatcher Dispatcher;
+        public readonly FakeSerializer Serializer;
+
+        public GrainProxyCtx(IDispatcher dispatcher, FakeSerializer serializer) {
+            Dispatcher = dispatcher;
+            Serializer = serializer;
+        }
+    }
 
 
     public abstract class GrainProxy : Grain {    //inheriting Grain is a hack in order to use Orleans extensions methods nicely

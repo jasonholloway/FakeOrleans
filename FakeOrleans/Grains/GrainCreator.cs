@@ -13,29 +13,29 @@ using Orleans.Storage;
 using Orleans.Providers;
 using Orleans.Timers;
 using Orleans.Streams;
+using FakeOrleans.Streams;
 
 namespace FakeOrleans.Grains
 {
     using FnStorageAssigner = Action<Grain, IStorage>;
     using FnStateExtractor = Func<Grain, IGrainState>;
-    using Streams;
 
        
 
-    public static class GrainFac
+    public static class GrainPrimer
     {
         static ConcurrentDictionary<Type, FnStorageAssigner> _dStorageAssigners = new ConcurrentDictionary<Type, FnStorageAssigner>();
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
         
-        public static async Task<IGrain> Activate(ActivationCtx ctx, IActivation act) 
+        public static async Task<Grain> Build(Activation_New act) 
         {
-            var key = ctx.Placement.Key;
+            var key = act.Placement.Key;
             var grainType = key.ConcreteType;
 
-            var runtime = new FakeGrainRuntime(ctx, act);
+            var runtime = new FakeGrainRuntime(act);
             
-            var creator = new GrainCreator(runtime, ctx.Fixture.Services);
-
+            var creator = new GrainCreator(runtime, act.Fixture.Services);
+            
             var stateType = GetStateType(grainType);
 
             var grain = stateType != null
@@ -49,13 +49,13 @@ namespace FakeOrleans.Grains
 
                 var grainState = fnStateExtractor(grain);
 
-                var bridge = new GrainStorageBridge(ctx, grainState);
+                var bridge = new GrainStorageBridge(act.Storage, act.Serializer, grainState);
                 fnStorageAssign(grain, bridge);
 
                 await bridge.ReadStateAsync();
             }
             
-            return (IGrain)grain;
+            return grain;
         }
 
 
@@ -128,26 +128,28 @@ namespace FakeOrleans.Grains
 
         class GrainStorageBridge : IStorage
         {
-            public readonly ActivationCtx _ctx;
+            public readonly StorageCell StorageCell;
+            public readonly FakeSerializer Serializer;
             public readonly IGrainState State;
 
-            public GrainStorageBridge(ActivationCtx ctx, IGrainState state) {
-                _ctx = ctx;
+            public GrainStorageBridge(StorageCell storageCell, FakeSerializer serializer, IGrainState state) {
+                StorageCell = storageCell;
+                Serializer = serializer;
                 State = state;
             }
 
             public Task ClearStateAsync() {
-                _ctx.Storage.Clear();
+                StorageCell.Clear();
                 return Task.CompletedTask;
             }
 
             public Task WriteStateAsync() {
-                _ctx.Storage.Write(State, _ctx.Serializer);
+                StorageCell.Write(State, Serializer);
                 return Task.CompletedTask;
             }
 
             public Task ReadStateAsync() {
-                _ctx.Storage.Read(State, _ctx.Serializer);
+                StorageCell.Read(State, Serializer);
                 return Task.CompletedTask;
             }
         }
@@ -199,11 +201,9 @@ namespace FakeOrleans.Grains
 
     public class FakeGrainRuntime : IGrainRuntime
     {
-        readonly ActivationCtx _ctx;
-        readonly IActivation _act;
+        readonly Activation_New _act;
         
-        public FakeGrainRuntime(ActivationCtx ctx, IActivation act) {
-            _ctx = ctx;
+        public FakeGrainRuntime(Activation_New act) {
             _act = act;
         }
         
@@ -211,28 +211,28 @@ namespace FakeOrleans.Grains
         public string SiloIdentity { get; } = "SiloIdentity";
 
         public IServiceProvider ServiceProvider {
-            get { return _ctx.Fixture.Services; }
+            get { return _act.Fixture.Services; }
         }
 
         public IGrainFactory GrainFactory {
-            get { return _ctx.Fixture.GrainFactory; }
+            get { return _act.Fixture.GrainFactory; }
         }
         
         public ITimerRegistry TimerRegistry {
-            get { return _ctx.Timers; }
+            get { return _act.Timers; }
         }
 
         public IReminderRegistry ReminderRegistry {
-            get { return _ctx.Fixture.Reminders.GetRegistry(_ctx.Placement.Key); }
+            get { return _act.Fixture.Reminders.GetRegistry(_act.Placement.Key); }
         }
 
         public IStreamProviderManager StreamProviderManager {
-            get { return new StreamProviderManagerAdaptor(_ctx); }
+            get { return new StreamProviderManagerAdaptor(_act); }
         }
         
         public void DeactivateOnIdle(Grain grain) {
-            _act.Deactivate()
-                .SinkExceptions(_ctx.Fixture.Exceptions);
+            _act.Dispatcher.Deactivate()
+                .SinkExceptions(_act.Fixture.Exceptions);
         }
 
         public void DelayDeactivation(Grain grain, TimeSpan timeSpan) {
