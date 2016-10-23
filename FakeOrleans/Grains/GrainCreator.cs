@@ -11,9 +11,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Orleans.Storage;
 using Orleans.Providers;
-using Orleans.Timers;
-using Orleans.Streams;
-using FakeOrleans.Streams;
 
 namespace FakeOrleans.Grains
 {
@@ -22,19 +19,16 @@ namespace FakeOrleans.Grains
 
        
 
-    public static class GrainPrimer
+    public static class GrainConstructor
     {
         static ConcurrentDictionary<Type, FnStorageAssigner> _dStorageAssigners = new ConcurrentDictionary<Type, FnStorageAssigner>();
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
         
-        public static async Task<Grain> Build(Activation_New act) 
+        public static async Task<Grain> New(ConcreteKey key, IGrainRuntime grainRuntime, IServiceProvider services, StorageCell storage, FakeSerializer serializer) 
         {
-            var key = act.Placement.Key;
             var grainType = key.ConcreteType;
-
-            var runtime = new FakeGrainRuntime(act);
             
-            var creator = new GrainCreator(runtime, act.Fixture.Services);
+            var creator = new GrainCreator(grainRuntime, services);
             
             var stateType = GetStateType(grainType);
 
@@ -49,7 +43,7 @@ namespace FakeOrleans.Grains
 
                 var grainState = fnStateExtractor(grain);
 
-                var bridge = new GrainStorageBridge(act.Storage, act.Serializer, grainState);
+                var bridge = new GrainStorageBridge(storage, serializer, grainState);
                 fnStorageAssign(grain, bridge);
 
                 await bridge.ReadStateAsync();
@@ -193,60 +187,5 @@ namespace FakeOrleans.Grains
 
     }
 
-
-
-
-
-
-
-    public class FakeGrainRuntime : IGrainRuntime
-    {
-        readonly Activation_New _act;
         
-        public FakeGrainRuntime(Activation_New act) {
-            _act = act;
-        }
-        
-        public Guid ServiceId { get; } = Guid.NewGuid();
-        public string SiloIdentity { get; } = "SiloIdentity";
-
-        public IServiceProvider ServiceProvider {
-            get { return _act.Fixture.Services; }
-        }
-
-        public IGrainFactory GrainFactory {
-            get { return _act.Fixture.GrainFactory; }
-        }
-        
-        public ITimerRegistry TimerRegistry {
-            get { return _act.Timers; }
-        }
-
-        public IReminderRegistry ReminderRegistry {
-            get { return _act.Fixture.Reminders.GetRegistry(_act.Placement.Key); }
-        }
-
-        public IStreamProviderManager StreamProviderManager {
-            get { return new StreamProviderManagerAdaptor(_act); }
-        }
-        
-        public void DeactivateOnIdle(Grain grain) {
-            _act.Dispatcher.Deactivate()
-                .SinkExceptions(_act.Fixture.Exceptions);
-        }
-
-        public void DelayDeactivation(Grain grain, TimeSpan timeSpan) {
-            throw new NotImplementedException();
-        }
-
-        public Logger GetLogger(string loggerName) {
-            throw new NotImplementedException();
-        }
-        
-    }
-
-
-
-
-
 }

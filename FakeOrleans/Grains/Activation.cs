@@ -14,103 +14,168 @@ using FakeOrleans.Streams;
 
 namespace FakeOrleans.Grains
 {
-    
-    public enum ActivationStatus
-    {
+    public enum ActivationStatus {
         Unactivated,
         Activated,
         Deactivated
     }
 
-                
-
-    //public static class ActivationFac
-    //{        
-    //    public static IActivation Create(Fixture fx, GrainPlacement placement) 
-    //    {
-    //        var scheduler = new GrainTaskScheduler(fx.Scheduler, fx.Exceptions);
-    //        var runner = new RequestRunner(scheduler, fx.Exceptions, fx.Requests); //isolate by default? - depends on spec
-            
-    //        var ctx = new ActivationCtx() {
-    //            Placement = placement,
-    //            Fixture = fx,
-    //            Scheduler = scheduler,
-    //            Runner = runner,
-    //            Timers = new MockTimerRegistry(scheduler),
-    //            Serializer = fx.Serializer,
-    //            Receivers = new StreamReceiverRegistry(fx.Serializer)
-    //        };
-
-    //        return new Activation();
-    //    }
-    //}
-
-    
-    //public class ActivationCtx
-    //{
-    //    public Fixture Fixture;
-    //    public GrainPlacement Placement;
-    //    public TaskScheduler Scheduler;
-    //    public RequestRunner Runner;
-    //    public MockTimerRegistry Timers;
-    //    public FakeSerializer Serializer;
-    //    public StreamReceiverRegistry Receivers;
-    //    public GrainReminderRegistry Reminders;
-    //    public StorageCell Storage;
-    //}
-
-    
 
     public interface IActivation
     {
+        Placement Placement { get; }
+        IActivationDispatcher Dispatcher { get; }
+    }
 
+    public interface IStreamContext
+    {
+        Placement Placement { get; }
+        StreamRegistry Streams { get; }
+        StreamReceiverRegistry Receivers { get; }
+        FakeSerializer Serializer { get; }
     }
 
 
-    public class Activation_New : IActivation
+
+    public class Activation_New : IActivation, IStreamContext
     {
-        public readonly Fixture Fixture;
-        public readonly GrainPlacement Placement;        
-        public readonly TaskScheduler Scheduler;
-        public readonly RequestRunner Runner;
-        public readonly FakeSerializer Serializer;
-        public readonly MockTimerRegistry Timers;
-        public readonly StreamReceiverRegistry Receivers;
-        public readonly GrainReminderRegistry Reminders;
-        public readonly StorageCell Storage;
-        public readonly ActivationDispatcher Dispatcher;
+        public Placement Placement { get; private set; }
+        public IActivationDispatcher Dispatcher { get; private set; }
 
-        public Activation_New(Fixture fx, GrainPlacement placement) 
-        {
-            Fixture = fx;
+        readonly Fixture _fx;
+        readonly Placement _placement;
+        readonly FakeSerializer _serializer;
+        readonly MockTimerRegistry _timers;
+        readonly StreamReceiverRegistry _receivers;
+        readonly GrainReminderRegistry _reminders;
+        readonly TaskScheduler _scheduler;
+        readonly RequestRunner _runner;
+        readonly StorageCell _storage;
+
+        public Activation_New(Fixture fx, Placement placement) {
+            _fx = fx;
+            _placement = placement;
+            _serializer = fx.Serializer;
+            _scheduler = new GrainTaskScheduler(fx.Scheduler, fx.Exceptions);
+            _runner = new RequestRunner(_scheduler, fx.Exceptions, fx.Requests, true); //default isolation???
+            _timers = new MockTimerRegistry(_scheduler);
+            _receivers = new StreamReceiverRegistry(_serializer);
+            _storage = fx.Stores.GetStorage(placement);
+            _reminders = fx.Reminders.GetRegistry(placement);
+
             Placement = placement;
+            Dispatcher = new ActivationDispatcher(_runner, CreateGrainContext);
+        }
 
-            Serializer = fx.Serializer;
-            Scheduler = new GrainTaskScheduler(fx.Scheduler, fx.Exceptions);
-            Runner = new RequestRunner(Scheduler, fx.Exceptions, fx.Requests, true); //default isolation???
+
+        #region IStreamContext
+
+        Placement IStreamContext.Placement {
+            get { return _placement; }
+        }
+
+        StreamRegistry IStreamContext.Streams {
+            get { return _fx.Streams; }
+        }
+
+        StreamReceiverRegistry IStreamContext.Receivers {
+            get { return _receivers; }
+        }
+
+        FakeSerializer IStreamContext.Serializer {
+            get { return _serializer; }
+        }
+
+        #endregion
+
+
+        async Task<IGrainContext> CreateGrainContext() 
+        {
+            var grain = await GrainConstructor.New(
+                                        _placement.ConcreteKey, 
+                                        new _GrainRuntime(this), 
+                                        _fx.Services,
+                                        _storage,
+                                        _fx.Serializer);    
+                    
+            return new _GrainContext(this, grain);
+        }
+
+        class _GrainContext : IGrainContext
+        {
+            public Grain Grain { get; private set; }
+            public Placement Placement { get; private set; }
+            public FakeSerializer Serializer { get; private set; }
+
+            public _GrainContext(Activation_New act, Grain grain) {
+                Grain = grain;
+                Placement = act.Placement;
+                Serializer = act._serializer;
+            }
+        }
+
+
+
+
+        class _GrainRuntime : IGrainRuntime
+        {
+            public Guid ServiceId { get; private set; } = Guid.Empty;
+            public string SiloIdentity { get; private set; } = "Silo";
+
+            Activation_New _act;
+
+            public _GrainRuntime(Activation_New act) {
+                _act = act;
+            }
             
-            Dispatcher = new ActivationDispatcher(Runner, this, () => GrainPrimer.Build(this));
+            public IGrainFactory GrainFactory {
+                get { return _act._fx.GrainFactory; }
+            }
+                        
+            public IReminderRegistry ReminderRegistry {
+                get { return _act._reminders; }
+            }
+            
+            public IServiceProvider ServiceProvider {
+                get { return _act._fx.Services; }
+            }
 
-            Timers = new MockTimerRegistry(Scheduler);
-            Receivers = new StreamReceiverRegistry(Serializer);
+            public IStreamProviderManager StreamProviderManager {
+                get { throw new NotImplementedException(); }
+            }
+            
+            public ITimerRegistry TimerRegistry {
+                get { return _act._timers; }
+            }
 
-            Storage = fx.Stores.GetStorage(placement.Key);
-            Reminders = fx.Reminders.GetRegistry(placement.Key);
+            public void DeactivateOnIdle(Grain grain) {
+                _act.Dispatcher.Deactivate().SinkExceptions(_act._fx.Exceptions);
+            }
+
+            public void DelayDeactivation(Grain grain, TimeSpan timeSpan) {
+                throw new NotImplementedException();
+            }
+
+            public Logger GetLogger(string loggerName) {
+                throw new NotImplementedException();
+            }
         }
 
     }
 
 
 
+    public interface IGrainContext {
+        Placement Placement { get; }
+        Grain Grain { get; }
+        FakeSerializer Serializer { get; }
+    }
+
+
 
     public interface IActivationDispatcher
     {
-        //Grain Grain { get; } //grain should only be got via performances...
-        //ActivationStatus Status { get; }
-
-        //StreamReceiverRegistry Receivers { get; }
-
-        Task<TResult> Perform<TResult>(Func<IActivation, Grain, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
+        Task<TResult> Perform<TResult>(Func<IGrainContext, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified);
         Task Deactivate();
     }
 
@@ -118,22 +183,20 @@ namespace FakeOrleans.Grains
     public class ActivationDispatcher : IActivationDispatcher
     {
         readonly RequestRunner _runner;
-        readonly IActivation _act;
-        readonly Func<Task<Grain>> _grainFac;
+        readonly Func<Task<IGrainContext>> _ctxFac;
 
-        public ActivationDispatcher(RequestRunner runner, IActivation act, Func<Task<Grain>> grainFac) {
+        public ActivationDispatcher(RequestRunner runner, Func<Task<IGrainContext>> ctxFac) {
             _runner = runner;
-            _act = act;
-            _grainFac = grainFac;
+            _ctxFac = ctxFac;
         }
 
 
         volatile ActivationStatus _status = ActivationStatus.Unactivated;
 
-        Grain _grain = null;
+        IGrainContext _ctx = null;
         SemaphoreSlim _sm = new SemaphoreSlim(1);
 
-        public async Task<TResult> Perform<TResult>(Func<IActivation, Grain, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) {
+        public async Task<TResult> Perform<TResult>(Func<IGrainContext, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) {
             try {
                 await _sm.WaitAsync();
 
@@ -142,11 +205,11 @@ namespace FakeOrleans.Grains
                         throw new DeactivatedException();
                     }
 
-                    if(_grain == null) {
-                        _grain = await _grainFac();
+                    if(_ctx == null) {
+                        _ctx = await _ctxFac();
 
                         await _runner.Perform(async () => {
-                            await _grain.OnActivateAsync();
+                            await _ctx.Grain.OnActivateAsync();
                             _status = ActivationStatus.Activated;
                             return true;
                         }, RequestMode.Isolated);
@@ -156,7 +219,7 @@ namespace FakeOrleans.Grains
                     _sm.Release();
                 }
 
-                return await _runner.Perform(() => fn(_act, _grain), mode);
+                return await _runner.Perform(() => fn(_ctx), mode);
             }
             catch(RequestRunnerClosedException) {
                 throw new DeactivatedException();
@@ -171,7 +234,7 @@ namespace FakeOrleans.Grains
 
             _runner.Close(() => {
                 _status = ActivationStatus.Deactivated;
-                return _grain.OnDeactivateAsync();
+                return _ctx.Grain.OnDeactivateAsync();
             });
 
             return Task.CompletedTask;

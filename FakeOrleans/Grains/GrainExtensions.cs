@@ -32,23 +32,25 @@ namespace FakeOrleans
 
 
 
-        public static GrainKey GetGrainKey(this IGrain @this) {
+        public static AbstractKey GetGrainKey(this IGrain @this) {
             if(@this is GrainProxy) {
                 return ((GrainProxy)@this).Key;
             }
 
-            if(@this is Grain) {
-                var harness = (GrainHarness)ExtractGrainRuntimeFrom(@this);
-                return harness.Placement.Key;
-            }
+            throw new InvalidOperationException("Can only get grain key of proxies!");
+
+            //if(@this is Grain) { //can't get grainkey from a grain...
+            //    var harness = (GrainHarness)ExtractGrainRuntimeFrom(@this);
+            //    return harness.Placement.Key;
+            //}
 
             //otherwise have to delve into private stuff - orleans etc etc
             //...
 
-            return new GrainKey(
-                        @this.GetConcreteGrainType(),
-                        @this.ExtractKey()
-                        );
+            //return new GrainKey(
+            //            @this.GetConcreteGrainType(),
+            //            @this.ExtractKey()
+            //            );
         }
 
 
@@ -138,21 +140,27 @@ namespace FakeOrleans
         /// <returns></returns>
         public static T CastAs<T>(this IGrain @this) where T : IGrain {
             //in place to short-circuit Orleans when testing; should always be used
-            
-            if(@this is GrainProxy) {
-                return (T)@this;
+
+            var proxy = @this as GrainProxy;
+
+            if(proxy != null) {
+                return (T)(object)proxy; //eeek!
             }
 
-            if(@this is Grain) {
-                var harness = ExtractGrainRuntimeFrom(@this) as GrainHarness;
+            var grain = @this as Grain;
+
+            if(grain != null) {
+                throw new NotImplementedException("Need to give access to key via GrainRuntime extraction");
+
+                //var harness = ExtractGrainRuntimeFrom(@this) as GrainHarness; //the GrainRuntime needs to give access to 
                 
-                if(harness != null) {
-                    var concreteKey = @this.GetGrainKey();
+                //if(harness != null) {
+                //    var concreteKey = @this.GetGrainKey();
 
-                    var grainKey = new ResolvedGrainKey(typeof(T), concreteKey.ConcreteType, concreteKey.Key);
+                //    var grainKey = new ResolvedKey(typeof(T), concreteKey.AbstractType, concreteKey.Id);
 
-                    return (T)(object)harness.Fixture.GetGrainProxy(grainKey);
-                }
+                //    return (T)(object)harness.Fixture.GetGrainProxy(grainKey);
+                //}
             }
 
             return @this.AsReference<T>();
@@ -231,6 +239,15 @@ namespace FakeOrleans
 
                 return exLambda.Compile();
             });
+
+
+
+
+
+
+
+
+
 
 
 

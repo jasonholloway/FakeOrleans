@@ -16,18 +16,18 @@ namespace FakeOrleans.Tests
     public class ActivationSiteTests
     {
 
-        Func<IActivation, Task<Guid>> _fn = g => Task.FromResult(Guid.Empty);
+        Func<IGrainContext, Task<Guid>> _fn = g => Task.FromResult(Guid.Empty);
 
 
         [Test]
-        public async Task DispatchesToActivation() 
+        public async Task DispatchesToActivationDispatcher() 
         {
             var guid = Guid.NewGuid();
             
-            var activation = Substitute.For<IActivation>();
-            activation.Perform(Arg.Is(_fn)).Returns(guid);
+            var disp = Substitute.For<IActivationDispatcher>();
+            disp.Perform(Arg.Is(_fn)).Returns(guid);
             
-            var site = new ActivationSite(_ => activation);
+            var site = new ActivationSite(_ => disp); //in reality, passed factory would summon entire activation
 
             var result = await site.Dispatch(_fn);
 
@@ -37,23 +37,22 @@ namespace FakeOrleans.Tests
         
         
         [Test]
-        public async Task ReactivatesWhenDeactivatedFound() 
+        public async Task RecreatesDispatcherWhenDeactivatedFound()   //does ActivationSite really need the acivation itself, or just its dispatcher?
         {
             var expectedReturnVal = Guid.NewGuid();
-            var placement = new GrainPlacement(new GrainKey(typeof(Grain), Guid.NewGuid()));
+            var placement = new Placement(new ConcreteKey(typeof(Grain), Guid.NewGuid()));
 
-            var deadActivation = Substitute.For<IActivation>();
-            deadActivation
-                .When(x => x.Perform(Arg.Is(_fn)))
-                .Do(_ => { throw new DeactivatedException(); });
+            var deadDisp = Substitute.For<IActivationDispatcher>();
+            deadDisp.When(x => x.Perform(Arg.Is(_fn)))
+                    .Do(_ => { throw new DeactivatedException(); });
 
-            var goodActivation = Substitute.For<IActivation>();
-            goodActivation.Perform(Arg.Is(_fn)).Returns(expectedReturnVal);
+            var goodDisp = Substitute.For<IActivationDispatcher>();
+            goodDisp.Perform(Arg.Is(_fn)).Returns(expectedReturnVal);
             
-            var actCreator = Substitute.For<Func<GrainPlacement, IActivation>>();
-            actCreator(Arg.Is(placement)).Returns(deadActivation, goodActivation);
+            var dispCreator = Substitute.For<Func<Placement, IActivationDispatcher>>();
+            dispCreator(Arg.Is(placement)).Returns(deadDisp, goodDisp);
             
-            var site = new ActivationSite(actCreator);
+            var site = new ActivationSite(dispCreator);
             site.Init(placement);
 
             var result = await site.Dispatch(_fn);
@@ -65,10 +64,10 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task SameActivationUsedIfGood() 
+        public async Task SameDispatcherUsedIfGood() 
         {
-            var actCreator = new Func<GrainPlacement, IActivation>(p => {
-                                        var act = Substitute.For<IActivation>();
+            var actCreator = new Func<Placement, IActivationDispatcher>(p => {
+                                        var act = Substitute.For<IActivationDispatcher>();
                                         act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
                                         return act;
                                     });
@@ -88,13 +87,13 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task ReactivatesOneAtATimeViaLock() 
         {
-            var actCreator = new Func<GrainPlacement, IActivation>(p => {
-                                    var act = Substitute.For<IActivation>();
+            var dispCreator = new Func<Placement, IActivationDispatcher>(p => {
+                                    var act = Substitute.For<IActivationDispatcher>();
                                     act.Perform(Arg.Is(_fn)).Returns(Guid.NewGuid());
                                     return act;
                                 });
 
-            var site = new ActivationSite(actCreator);
+            var site = new ActivationSite(dispCreator);
 
             var results = await Enumerable.Range(0, 1000)
                                     .Select(async _ => {

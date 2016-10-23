@@ -1,3 +1,4 @@
+using Orleans;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,60 +9,47 @@ namespace FakeOrleans.Grains
 {
 
     public class DeactivatedException : Exception { }
-
-
     
-
-    public interface IActivationProvider
-    {
-        IActivationDispatcher GetActivation();
-    }
-
 
 
     public interface IActivationSite
     {
-        IActivationDispatcher Activation { get; }
-        Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode);
+        Task<TResult> Dispatch<TResult>(Func<IGrainContext, Task<TResult>> fn, RequestMode mode);
     }
 
 
 
     public class ActivationSite : IActivationSite
     {
-        readonly Func<GrainPlacement, IActivation> _actCreator;
+        readonly Func<Placement, IActivationDispatcher> _dispFac;
 
-        GrainPlacement _placement;
-        IActivation _act = null;
+        Placement _placement;
+        IActivationDispatcher _disp = null;
         object _sync = new object();
 
-        public ActivationSite(Func<GrainPlacement, IActivation> actCreator) {
-            _actCreator = actCreator;
+        public ActivationSite(Func<Placement, IActivationDispatcher> actDispFac) {
+            _dispFac = actDispFac;
         }
         
 
-        public void Init(GrainPlacement placement) {
+        public void Init(Placement placement) {
             _placement = placement;
         }
-
-
-        public IActivation Activation {
-            get { return _act; }
-        }
         
-        public Task<TResult> Dispatch<TResult>(Func<IActivation, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
+        
+        public Task<TResult> Dispatch<TResult>(Func<IGrainContext, Task<TResult>> fn, RequestMode mode = RequestMode.Unspecified) 
         {
-            IActivation act = null;
+            IActivationDispatcher disp = null;
 
             lock(_sync) {
-                act = _act ?? (_act = _actCreator(_placement));
+                disp = _disp ?? (_disp = _dispFac(_placement));
             }
 
             try {
-                return act.Dispatcher.Perform(fn, mode);
+                return disp.Perform(fn, mode);
             }
             catch(DeactivatedException) {
-                lock(_sync) _act = null;
+                lock(_sync) _disp = null;
                 return Dispatch(fn, mode);
             }
         }

@@ -10,14 +10,22 @@ namespace FakeOrleans.Components
     
     public interface IPlacer
     {
-        GrainPlacement Place(GrainKey key);
+        Placement Place(AbstractKey key);
     }
 
 
     public class Placer : IPlacer
     {
-        public GrainPlacement Place(GrainKey key) {
-            return new GrainPlacement(key);
+        readonly Func<Type, Type> _typeMapper;
+        
+        public Placer(Func<Type, Type> typeMapper) {
+            _typeMapper = typeMapper;
+        }
+
+        public Placement Place(AbstractKey key) {
+            var concreteType = _typeMapper(key.AbstractType);
+            var concreteKey = new ConcreteKey(concreteType, key.Id);            
+            return new Placement(concreteKey);
         }
     }
 

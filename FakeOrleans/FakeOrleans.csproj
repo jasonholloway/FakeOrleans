@@ -74,6 +74,7 @@
     <Compile Include="Components\ServiceRegistry.cs" />
     <Compile Include="Grains\Activation.cs" />
     <Compile Include="Grains\ActivationSite.cs" />
+    <Compile Include="Grains\GrainContextExtensions.cs" />
     <Compile Include="Grains\GrainExtensions.cs" />
     <Compile Include="Bits\Extensions\MiscExtensions.cs" />
     <Compile Include="Bits\Extensions\StringExtensions.cs" />

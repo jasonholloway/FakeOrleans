@@ -16,11 +16,11 @@ namespace FakeOrleans.Tests
     [TestFixture]
     public class DispatcherTests
     {
-        GrainKey _key;
-        GrainPlacement _placement;
-        Func<IActivation, Task<bool>> _fn;
+        AbstractKey _key;
+        Placement _placement;
+        Func<IGrainContext, Task<bool>> _fn;
         
-        Func<GrainKey, GrainPlacement> _placer;
+        Func<AbstractKey, Placement> _placer;
         IPlacementDispatcher _innerDisp;
         
         IDispatcher _disp;
@@ -28,12 +28,12 @@ namespace FakeOrleans.Tests
 
         [SetUp]
         public void SetUp() {
-            _key = new GrainKey(typeof(TestGrain), Guid.NewGuid());
-            _placement = new GrainPlacement(_key);
+            _key = new AbstractKey(typeof(TestGrain), Guid.NewGuid());
+            _placement = new Placement(new ConcreteKey(typeof(TestGrain), _key.Id));
 
             _innerDisp = Substitute.For<IPlacementDispatcher>();
 
-            _placer = Substitute.For<Func<GrainKey, GrainPlacement>>();
+            _placer = Substitute.For<Func<AbstractKey, Placement>>();
             _placer(Arg.Is(_key)).Returns(_placement);
 
             _disp = new Dispatcher(_placer, _innerDisp);

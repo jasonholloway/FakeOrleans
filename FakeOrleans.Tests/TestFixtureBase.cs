@@ -16,8 +16,8 @@ namespace FakeOrleans.Tests
         protected class TestGrain<T> : Grain, IGrainWithGuidKey { }
 
 
-        protected GrainPlacement CreatePlacement()
-                    => new GrainPlacement(new GrainKey(typeof(TestGrain), Guid.NewGuid()));
+        protected Placement CreatePlacement()
+                    => new Placement(new ConcreteKey(typeof(TestGrain), Guid.NewGuid()));
 
     }
 

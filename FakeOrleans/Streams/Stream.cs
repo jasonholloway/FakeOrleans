@@ -26,17 +26,17 @@ namespace FakeOrleans.Streams
         public readonly StreamKey Key;
 
         StreamRegistry _streamReg;
-        IDispatcher _disp;
-        RequestRunner _requests;
+        IPlacementDispatcher _disp;
+        ExceptionSink _exceptions;
         ConcurrentDictionary<Guid, Subscription> _dSubscriptions;
 
 
-        public Stream(StreamKey key, StreamRegistry streamReg, IDispatcher disp, RequestRunner requests)
+        public Stream(StreamKey key, StreamRegistry streamReg, IPlacementDispatcher disp, ExceptionSink exceptions)
         {
             Key = key;
             _streamReg = streamReg;
             _disp = disp;
-            _requests = requests;
+            _exceptions = exceptions;
             _dSubscriptions = new ConcurrentDictionary<Guid, Subscription>();
         }
 
@@ -58,15 +58,15 @@ namespace FakeOrleans.Streams
         
         
 
-        public SubKey Subscribe(GrainKey grainKey, bool isImplicit = false) 
+        public SubKey Subscribe(Placement placement, bool isImplicit = false) 
         {
             var subs = _dSubscriptions.Values.ToArray();
-            var foundImplicitSub = subs.FirstOrDefault(s => s.IsImplicit && s.GrainKey.Equals(grainKey));
+            var foundImplicitSub = subs.FirstOrDefault(s => s.IsImplicit && s.Placement.Equals(placement));
             if(foundImplicitSub != null) return foundImplicitSub.Key;
             
             var subKey = new SubKey(Key, Guid.NewGuid());
 
-            var subscription = new Subscription(subKey, grainKey, this, _disp, _requests, isImplicit);
+            var subscription = new Subscription(subKey, placement, this, _disp, _exceptions, isImplicit);
 
             _dSubscriptions[subKey.SubscriptionId] = subscription;
 
@@ -116,19 +116,19 @@ namespace FakeOrleans.Streams
         class Subscription : IStreamSink
         {
             public readonly SubKey Key;
-            public readonly GrainKey GrainKey;
+            public readonly Placement Placement;
             public readonly Stream Stream;
-            public readonly IDispatcher Dispatcher;
-            public readonly RequestRunner Requests;
+            public readonly IPlacementDispatcher Dispatcher;
+            public readonly ExceptionSink Exceptions;
             public readonly bool IsImplicit;
             
             
-            public Subscription(SubKey key, GrainKey grainKey, Stream stream, IDispatcher disp, RequestRunner requests, bool isImplicit) {
+            public Subscription(SubKey key, Placement placement, Stream stream, IPlacementDispatcher disp, ExceptionSink exceptions, bool isImplicit) {
                 Key = key;
-                GrainKey = grainKey;
+                Placement = placement;
                 Stream = stream;
                 Dispatcher = disp;
-                Requests = requests;
+                Exceptions = exceptions;
                 IsImplicit = isImplicit;
             }
             
@@ -144,19 +144,22 @@ namespace FakeOrleans.Streams
             
 
             Task Perform(Func<IStreamSink, Task> fn) {
-                Requests.PerformAndForget(async () => {
-                    //var activation = await Grains.GetActivation(GrainKey);
+                Dispatcher.Dispatch(Placement, c => Task.FromResult(true)) //should find receiver from IGrainContext and dispatch to it
+                            .SinkExceptions(Exceptions);
+                
+                //Requests.PerformAndForget(async () => {
+                //    //var activation = await Grains.GetActivation(GrainKey);
 
-                    await Dispatcher.Dispatch(GrainKey, g => Task.FromResult(true)); //need to get observer from activation
+                //    await Dispatcher.Dispatch(Placement, g => Task.FromResult(true)); //need to get observer from activation
 
-                    //AND FORGET ABOVE!
+                //    //AND FORGET ABOVE!
 
-                    //var observer = activation.StreamReceivers.Find(Key);
+                //    //var observer = activation.StreamReceivers.Find(Key);
 
-                    //if(observer != null) {
-                    //    activation.Requests.PerformAndForget(() => fn(observer)); //should isolate with the activation default
-                    //}
-                });
+                //    //if(observer != null) {
+                //    //    activation.Requests.PerformAndForget(() => fn(observer)); //should isolate with the activation default
+                //    //}
+                //});
 
                 return Task.CompletedTask;
             }

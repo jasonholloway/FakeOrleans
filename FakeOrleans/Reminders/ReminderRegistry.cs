@@ -1,14 +1,11 @@
-﻿using Orleans.Timers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Orleans.Runtime;
 using System.Collections.Concurrent;
-using Orleans;
-using System.Reflection;
 using System.Threading;
+using FakeOrleans.Grains;
 
 namespace FakeOrleans.Reminders
 {    
@@ -16,16 +13,16 @@ namespace FakeOrleans.Reminders
     public class ReminderRegistry
     {
         Fixture _fx;
-        ConcurrentDictionary<GrainKey, GrainReminderRegistry> _dRegistries;
+        ConcurrentDictionary<Placement, GrainReminderRegistry> _dRegistries;
 
         public ReminderRegistry(Fixture fx) {
             _fx = fx;
-            _dRegistries = new ConcurrentDictionary<GrainKey, GrainReminderRegistry>();
+            _dRegistries = new ConcurrentDictionary<Placement, GrainReminderRegistry>();
         }
 
 
-        public GrainReminderRegistry GetRegistry(GrainKey key)
-            => _dRegistries.GetOrAdd(key, k => new GrainReminderRegistry(_fx, k));
+        public GrainReminderRegistry GetRegistry(Placement placement)
+            => _dRegistries.GetOrAdd(placement, p => new GrainReminderRegistry(_fx, p));
 
 
         public Task CancelAll()

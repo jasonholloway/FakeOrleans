@@ -1,5 +1,6 @@
 ﻿using FakeOrleans.Components;
 using FakeOrleans.Grains;
+using NSubstitute;
 using NUnit.Framework;
 using Orleans;
 using System;
@@ -16,7 +17,7 @@ namespace FakeOrleans.Tests
     {
 
         IPlacer _placer;
-        GrainKey[] _keys;
+        AbstractKey[] _keys;
 
         Type[] _normGrainTypes = { typeof(TestGrain), typeof(TestGrain<int>), typeof(TestGrain<TestGrain<object>>) };
 
@@ -25,10 +26,13 @@ namespace FakeOrleans.Tests
         public void SetUp() 
         {            
             _keys = Enumerable.Range(0, 100)
-                        .Select(i => new GrainKey(_normGrainTypes[i % _normGrainTypes.Length], Guid.NewGuid()))
+                        .Select(i => new AbstractKey(_normGrainTypes[i % _normGrainTypes.Length], Guid.NewGuid()))
                         .ToArray();
 
-            _placer = new Placer();
+            var typeMapper = Substitute.For<Func<Type, Type>>();
+            typeMapper(Arg.Any<Type>()).Returns(c => c.Arg<Type>()); //no mapping - just pass input back out
+
+            _placer = new Placer(typeMapper);
         }
 
         

@@ -12,17 +12,16 @@ namespace FakeOrleans.Streams
     
     public class StreamRegistry
     {
-        //GrainRegistry _grains;
-        IDispatcher _disp;
-        RequestRunner _requests;
+        IPlacementDispatcher _disp;
+        ExceptionSink _exceptions;
         ConcurrentDictionary<StreamKey, Stream> _dStreams;
         ConcurrentDictionary<string, ConcurrentBag<Type>> _dImplicitSubTypes;
 
 
-        public StreamRegistry(IDispatcher disp, RequestRunner requests, TypeMap typeMap) 
+        public StreamRegistry(IPlacementDispatcher disp, ExceptionSink exceptions, TypeMap typeMap) 
         {
             _disp = disp;
-            _requests = requests;
+            _exceptions = exceptions;
             _dStreams = new ConcurrentDictionary<StreamKey, Stream>();
             _dImplicitSubTypes = new ConcurrentDictionary<string, ConcurrentBag<Type>>();
 
@@ -35,15 +34,15 @@ namespace FakeOrleans.Streams
 
         Stream CreateStream(StreamKey key) 
         { 
-            var stream = new Stream(key, this, _disp, _requests);
+            var stream = new Stream(key, this, _disp, _exceptions);
 
             //implicit subs -----------------------------------------------------------
             ConcurrentBag<Type> implicitSubGrainTypes;
             
             if(_dImplicitSubTypes.TryGetValue(key.Namespace, out implicitSubGrainTypes)) {
                 implicitSubGrainTypes.ForEach(grainType => {
-                    var grainKey = new GrainKey(grainType, key.Id);
-                    stream.Subscribe(grainKey, true);
+                    var concreteKey = new ConcreteKey(grainType, key.Id);   //!!!!  ConcreteKey should be enough to make a special placement                    
+                    stream.Subscribe(new Placement(concreteKey), true);     //this should be done via service, etc etc etc
                 });
             }
 

@@ -12,7 +12,7 @@ using System.Collections.Concurrent;
 namespace FakeOrleans.Grains
 {
     using Components;
-    using FnProxifier = Func<Fixture, ResolvedGrainKey, GrainProxy>;
+    using FnProxifier = Func<Fixture, AbstractKey, GrainProxy>;
 
 
 
@@ -31,11 +31,11 @@ namespace FakeOrleans.Grains
     public abstract class GrainProxy : Grain {    //inheriting Grain is a hack in order to use Orleans extensions methods nicely
         
         public Fixture Fixture;
-        public ResolvedGrainKey Key;
+        public AbstractKey Key;
 
         public abstract Type GrainType { get; }
         
-        protected GrainProxy(Fixture fx, ResolvedGrainKey key) {
+        protected GrainProxy(Fixture fx, AbstractKey key) {
             Fixture = fx;
             Key = key;
         }
@@ -52,13 +52,16 @@ namespace FakeOrleans.Grains
             for(int i = 0; i< args.Length; i++) {
                 var arg = args[i];
 
+                //BELOW SHOULD BE IN GENERAL SERIALIZER, RATHER THAN AD-HOC HERE !!!!!!!!!!!!!!!
+                //so serializer will be sensitive to grains - seems reasonable...
+
                 //proxify before passing to grain method
                 if(arg is Grain && !(arg is GrainProxy)) {  //nb GrainProxy derives from Grain these days, oddly
                     var argKey = ((IGrain)arg).GetGrainKey(); //NEED TO BURROW IN TO GRAINRUNTIME - WHICH WILL BE GRAINHARNESS
-
+                    
                     var param = method.GetParameters()[i];
 
-                    var grainKey = new ResolvedGrainKey(param.ParameterType, argKey.ConcreteType, argKey.Key);
+                    var grainKey = new AbstractKey(param.ParameterType, argKey.Id);
                                         
                     arg = Proxify(Fixture, grainKey);
                 }
@@ -66,13 +69,7 @@ namespace FakeOrleans.Grains
                 argData[i] = Fixture.Serializer.Serialize(arg);
             }
             
-            return Fixture.Requests.Perform(async () => { //would be nice if dispatcher used requestrunner itself...
-
-                return await Fixture.Dispatcher.Dispatch(Key, a => a.Invoke<TResult>(method, argData));
-
-                //var endpoint = await Fixture.Grains.GetGrainEndpoint(Key);
-                //return await endpoint.Invoke<TResult>(method, argData);
-            });
+            return Fixture.Dispatcher.Dispatch(Key, a => a.Invoke<TResult>(method, argData));
         }
 
 
@@ -85,9 +82,9 @@ namespace FakeOrleans.Grains
         static ConcurrentDictionary<Type, FnProxifier> _dProxifiers = new ConcurrentDictionary<Type, FnProxifier>();
 
 
-        public static GrainProxy Proxify(Fixture fx, ResolvedGrainKey key) {
+        public static GrainProxy Proxify(Fixture fx, AbstractKey key) {
             var proxifier = _dProxifiers.GetOrAdd(
-                                            key.ConcreteType,
+                                            key.AbstractType,
                                             t => BuildProxifier(t));
             
             return proxifier(fx, key);
@@ -119,7 +116,7 @@ namespace FakeOrleans.Grains
                 x.Attributes |= TypeAttributes.Serializable | TypeAttributes.Public;
 
                 x.Constructor()
-                    .ArgTypes(typeof(Fixture), typeof(ResolvedGrainKey))
+                    .ArgTypes(typeof(Fixture), typeof(ResolvedKey))
                     .PassThroughToBaseCtor();
 
 
@@ -179,12 +176,12 @@ namespace FakeOrleans.Grains
 
 
             var exFixtureParam = Expression.Parameter(typeof(Fixture));
-            var exKeyParam = Expression.Parameter(typeof(ResolvedGrainKey));
+            var exKeyParam = Expression.Parameter(typeof(ResolvedKey));
 
             var exLambda = Expression.Lambda<FnProxifier>(
                                         Expression.New(
                                             tProxy.GetConstructor(
-                                                        new[] { typeof(Fixture), typeof(ResolvedGrainKey) }),
+                                                        new[] { typeof(Fixture), typeof(ResolvedKey) }),
                                             exFixtureParam,
                                             exKeyParam
                                             ),
@@ -215,7 +212,7 @@ namespace FakeOrleans.Grains
     
     public abstract class GrainProxy<TGrain> : GrainProxy, IGrain, IEquatable<TGrain> 
     {        
-        public GrainProxy(Fixture fx, ResolvedGrainKey key) 
+        public GrainProxy(Fixture fx, ResolvedKey key) 
             : base(fx, key) 
             { }
 
@@ -233,19 +230,19 @@ namespace FakeOrleans.Grains
 
         bool IEquatable<TGrain>.Equals(TGrain other) {
             var x = (GrainProxy<TGrain>)(object)other;
-            return x != null && GrainKeyComparer.Instance.Equals(Key, x.Key);
+            return x != null && AbstractKeyComparer.Instance.Equals(Key, x.Key);
         }
 
         public override bool Equals(object obj) {
             if(obj is GrainProxy<TGrain>) {
-                return GrainKeyComparer.Instance.Equals(Key, ((GrainProxy<TGrain>)obj).Key);
+                return AbstractKeyComparer.Instance.Equals(Key, ((GrainProxy<TGrain>)obj).Key);
             }
 
             return false;
         }
 
         public override int GetHashCode() {
-            return GrainKeyComparer.Instance.GetHashCode(Key) + 13;
+            return AbstractKeyComparer.Instance.GetHashCode(Key) + 13;
         }
         
         

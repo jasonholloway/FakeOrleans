@@ -53,9 +53,9 @@ namespace FakeOrleans
 
     public class FakeSerializerCtx
     {
-        public readonly Func<ResolvedGrainKey, IGrain> Proxifier;
+        public readonly Func<AbstractKey, IGrain> Proxifier;
 
-        public FakeSerializerCtx(Func<ResolvedGrainKey, IGrain> proxifier) {
+        public FakeSerializerCtx(Func<AbstractKey, IGrain> proxifier) {
             Proxifier = proxifier;
         }
     }
@@ -71,10 +71,10 @@ namespace FakeOrleans
     
     public class FakeSerializer
     {
-        readonly Func<ResolvedGrainKey, IGrain> _proxifier;
+        readonly Func<AbstractKey, IGrain> _proxifier;
         readonly ISurrogateSelector _surrogateSelector;
 
-        public FakeSerializer(Func<ResolvedGrainKey, IGrain> proxifier) {
+        public FakeSerializer(Func<AbstractKey, IGrain> proxifier) {
             _proxifier = proxifier;
             _surrogateSelector = new GrainAwareSurrogateSelector();
         }
@@ -130,11 +130,15 @@ namespace FakeOrleans
             public ISerializationSurrogate GetSurrogate(Type type, StreamingContext context, out ISurrogateSelector selector) 
             {
                 selector = _next;
-                
+
+                //if(type.IsAssignableTo<IGrain>()) {
+                //    return new GrainSurrogate();
+                //}
+
                 if(type.IsAssignableTo<GrainProxy>() || type.Equals(typeof(GrainProxyDummy))) {
                     return new GrainProxySurrogate();
                 }
-                
+
                 //if(type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(StreamHub<>.SubscriptionHandle))) {
                 //    return new StreamSubscriptionHandleSurrogate();
                 //}
@@ -145,7 +149,30 @@ namespace FakeOrleans
 
 
 
-        
+
+        //class GrainSurrogate : ISerializationSurrogate
+        //{
+        //    public void GetObjectData(object obj, SerializationInfo info, StreamingContext context) 
+        //    {
+        //        info.SetType(typeof(GrainProxyDummy));
+
+        //        var grain = (IGrain)obj;
+        //        info.AddValue("key", grain.GetGrainKey(), typeof(GrainKey));
+        //    }
+
+        //    public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
+        //    {
+        //        var ctx = context.Context as FakeSerializerCtx;
+
+        //        if(ctx == null) {
+        //            throw new SerializationException($"Can't deserialize GrainProxy without {nameof(FakeSerializerCtx)}!");
+        //        }
+
+        //        var key = (GrainKey)info.GetValue("key", typeof(GrainKey));
+
+        //        return ctx.Proxifier(key);
+        //    }
+        //}
 
 
 
@@ -156,7 +183,7 @@ namespace FakeOrleans
                 info.SetType(typeof(GrainProxyDummy));
 
                 var proxy = (GrainProxy)obj;
-                info.AddValue("key", proxy.Key, typeof(ResolvedGrainKey));
+                info.AddValue("key", proxy.Key, typeof(ResolvedKey));
             }
 
             public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector) 
@@ -167,7 +194,7 @@ namespace FakeOrleans
                     throw new SerializationException($"Can't deserialize GrainProxy without {nameof(FakeSerializerCtx)}!");
                 }
                 
-                var key = (ResolvedGrainKey)info.GetValue("key", typeof(ResolvedGrainKey));
+                var key = (ResolvedKey)info.GetValue("key", typeof(ResolvedKey));
 
                 return ctx.Proxifier(key);
             }

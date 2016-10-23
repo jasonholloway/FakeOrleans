@@ -11,13 +11,13 @@ namespace FakeOrleans.Grains
 
     public class GrainStreamClient<T> : IAsyncStream<T>
     {
-        readonly Activation_New _ctx;
-        readonly GrainKey _grainKey;
+        readonly IStreamContext _ctx;
+        readonly Placement _placement;
         readonly Stream _stream;
 
-        public GrainStreamClient(Activation_New ctx, Stream stream) {
+        public GrainStreamClient(IStreamContext ctx, Stream stream) {
             _ctx = ctx;
-            _grainKey = _ctx.Placement.Key;
+            _placement = _ctx.Placement;
             _stream = stream;
         }
 
@@ -73,7 +73,7 @@ namespace FakeOrleans.Grains
             //its creation is implicitly subscribed or not
 
 
-            var subKey = _stream.Subscribe(_grainKey);
+            var subKey = _stream.Subscribe(_placement);
 
             _ctx.Receivers.Register(subKey, observer);
 

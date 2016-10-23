@@ -24,7 +24,7 @@ namespace FakeOrleans.Reminders
     public class Reminder : IGrainReminder
     {
         string _name;
-        GrainKey _key;
+        AbstractKey _key;
         Fixture _fx;
 
         volatile ReminderState _status;
@@ -33,8 +33,8 @@ namespace FakeOrleans.Reminders
         CancellationTokenSource _cancelTokenSource;
 
 
-        public Reminder(Fixture fx, GrainKey key, string name) {
-            _fx = fx;
+        public Reminder(Fixture fx, AbstractKey key, string name) {  //BUT!!! don't reminders function against abstract type -
+            _fx = fx;                                               //otherwise, how can we upgrade concrete types without ruining reminders???
             _key = key;
             _name = name;
 

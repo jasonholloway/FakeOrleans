@@ -9,25 +9,25 @@ using System.Threading.Tasks;
 namespace FakeOrleans
 {
     [Serializable]
-    public class GrainKey : IGrainIdentity, IComparable<GrainKey>, IEquatable<GrainKey>, ISerializable
+    public class AbstractKey : IGrainIdentity, IComparable<AbstractKey>, IEquatable<AbstractKey>, ISerializable
     {
-        public Type ConcreteType { get; private set; }
-        public Guid Key { get; private set; }
+        public Type AbstractType { get; private set; }
+        public Guid Id { get; private set; }
         
-        public GrainKey(Type concreteType, Guid key)
+        public AbstractKey(Type abstractType, Guid id)
         {
-            ConcreteType = concreteType;
-            Key = key;
+            AbstractType = abstractType;
+            Id = id;
         }
 
-        public override string ToString() => $"{ConcreteType.Name}/{Key}";
+        public override string ToString() => $"{AbstractType.Name}/{Id}";
 
         #region IGrainIdentity
 
         Guid IGrainIdentity.PrimaryKey
         {
             get {
-                return Key;
+                return Id;
             }
         }
 
@@ -66,44 +66,44 @@ namespace FakeOrleans
         
         #region Comparison etc
 
-        int IComparable<GrainKey>.CompareTo(GrainKey other)
+        int IComparable<AbstractKey>.CompareTo(AbstractKey other)
         {
-            var typeComparison = Comparer<Type>.Default.Compare(ConcreteType, other.ConcreteType);
+            var typeComparison = Comparer<Type>.Default.Compare(AbstractType, other.AbstractType);
 
             return typeComparison != 0
                     ? typeComparison
-                    : Comparer<Guid>.Default.Compare(Key, other.Key);
+                    : Comparer<Guid>.Default.Compare(Id, other.Id);
         }
 
 
-        bool IEquatable<GrainKey>.Equals(GrainKey other) {
-            return ConcreteType == other.ConcreteType
-                    && Key == other.Key;
+        bool IEquatable<AbstractKey>.Equals(AbstractKey other) {
+            return AbstractType == other.AbstractType
+                    && Id == other.Id;
         }
 
         public override bool Equals(object obj) {
-            return obj is GrainKey
-                    && ((IEquatable<GrainKey>)this).Equals((GrainKey)obj);
+            return obj is AbstractKey
+                    && ((IEquatable<AbstractKey>)this).Equals((AbstractKey)obj);
         }
 
         public override int GetHashCode() {
-            return (ConcreteType.GetHashCode() << 8)
-                    ^ Key.GetHashCode();
+            return (AbstractType.GetHashCode() << 8)
+                    ^ Id.GetHashCode();
         }
 
         #endregion
 
         #region Serialization
 
-        protected GrainKey(SerializationInfo info, StreamingContext ctx) {
-            Key = (Guid)info.GetValue("Key", typeof(Guid));
-            ConcreteType = (Type)info.GetValue("ConcreteType", typeof(Type));
+        protected AbstractKey(SerializationInfo info, StreamingContext ctx) {
+            Id = (Guid)info.GetValue("Key", typeof(Guid));
+            AbstractType = (Type)info.GetValue("AbstractType", typeof(Type));
         }
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            info.AddValue("ConcreteType", ConcreteType);
-            info.AddValue("Key", Key);
+            info.AddValue("AbstractType", AbstractType);
+            info.AddValue("Key", Id);
         }
 
         #endregion
@@ -111,18 +111,18 @@ namespace FakeOrleans
     }
 
 
-    public class GrainKeyComparer : IEqualityComparer<GrainKey>
+    public class AbstractKeyComparer : IEqualityComparer<AbstractKey>
     {
-        public readonly static GrainKeyComparer Instance = new GrainKeyComparer();
+        public readonly static AbstractKeyComparer Instance = new AbstractKeyComparer();
 
-        public bool Equals(GrainKey x, GrainKey y) {
-            return x.ConcreteType == y.ConcreteType
-                    && x.Key == y.Key;
+        public bool Equals(AbstractKey x, AbstractKey y) {
+            return x.AbstractType == y.AbstractType
+                    && x.Id == y.Id;
         }
 
-        public int GetHashCode(GrainKey obj) {
-            return (obj.ConcreteType.GetHashCode() << 8)
-                    ^ obj.Key.GetHashCode();
+        public int GetHashCode(AbstractKey obj) {
+            return (obj.AbstractType.GetHashCode() << 8)
+                    ^ obj.Id.GetHashCode();
         }
     }
 
@@ -132,59 +132,63 @@ namespace FakeOrleans
 
 
     [Serializable]
-    public class ResolvedGrainKey : GrainKey, IComparable<ResolvedGrainKey>, IEquatable<ResolvedGrainKey>, ISerializable
+    public class ResolvedKey : AbstractKey, IComparable<ResolvedKey>, IEquatable<ResolvedKey>, ISerializable
     {
-        public Type AbstractType { get; private set; }
+        public Type ConcreteType { get; private set; }
 
-        public ResolvedGrainKey(Type abstractType, Type concreteType, Guid key) 
+        public ResolvedKey(Type abstractType, Type concreteType, Guid key) 
             : base(concreteType, key)
         {
-            AbstractType = abstractType;
+            ConcreteType = abstractType;
         }
-        
+
+        public ResolvedKey(AbstractKey grainKey, Type concreteType) 
+            : this(grainKey.AbstractType, concreteType, grainKey.Id) { }
+
+
         #region Comparison etc
 
-        int IComparable<ResolvedGrainKey>.CompareTo(ResolvedGrainKey other)
+        int IComparable<ResolvedKey>.CompareTo(ResolvedKey other)
         {
             var typeComparison = Comparer<Type>.Default.Compare(ConcreteType, other.ConcreteType);
 
             return typeComparison != 0
                     ? typeComparison
-                    : Comparer<Guid>.Default.Compare(Key, other.Key);
+                    : Comparer<Guid>.Default.Compare(Id, other.Id);
         }
 
 
-        bool IEquatable<ResolvedGrainKey>.Equals(ResolvedGrainKey other) {
+        bool IEquatable<ResolvedKey>.Equals(ResolvedKey other) {
             return
-                AbstractType == other.AbstractType
+                ConcreteType == other.ConcreteType
                 && ConcreteType == other.ConcreteType
-                && Key == other.Key;
+                && Id == other.Id;
         }
 
         public override bool Equals(object obj) {
-            return obj is ResolvedGrainKey
-                    && ((IEquatable<ResolvedGrainKey>)this).Equals((ResolvedGrainKey)obj);
+            return obj is ResolvedKey
+                    && ((IEquatable<ResolvedKey>)this).Equals((ResolvedKey)obj);
         }
 
         public override int GetHashCode() {
-            return (AbstractType != null ? (AbstractType.GetHashCode() << 16) : 0)
-                    ^ (ConcreteType.GetHashCode() << 8) 
-                    ^ Key.GetHashCode();
+            return (ConcreteType != null ? (ConcreteType.GetHashCode() << 16) : 0)
+                    ^ (base.AbstractType.GetHashCode() << 8) 
+                    ^ Id.GetHashCode();
         }
 
         #endregion
 
         #region Serialization
 
-        protected ResolvedGrainKey(SerializationInfo info, StreamingContext ctx) : base(info, ctx) {
-            AbstractType = (Type)info.GetValue("AbstractType", typeof(Type));
+        protected ResolvedKey(SerializationInfo info, StreamingContext ctx) : base(info, ctx) {
+            ConcreteType = (Type)info.GetValue("ConcreteType", typeof(Type));
         }
         
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            info.AddValue("AbstractType", AbstractType);
             info.AddValue("ConcreteType", ConcreteType);
-            info.AddValue("Key", Key);
+            info.AddValue("AbstractType", base.AbstractType);
+            info.AddValue("Key", Id);
         }
 
         #endregion

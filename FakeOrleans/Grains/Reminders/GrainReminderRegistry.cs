@@ -1,4 +1,5 @@
-﻿using Orleans.Runtime;
+﻿using FakeOrleans.Grains;
+using Orleans.Runtime;
 using Orleans.Timers;
 using System;
 using System.Collections.Concurrent;
@@ -14,13 +15,13 @@ namespace FakeOrleans.Reminders
     public class GrainReminderRegistry : IReminderRegistry
     {
         Fixture _fx;
-        GrainKey _grainKey;
+        Placement _placement;
         ConcurrentDictionary<string, Reminder> _reminders = new ConcurrentDictionary<string, Reminder>();
 
 
-        public GrainReminderRegistry(Fixture fx, GrainKey grainKey) {
+        public GrainReminderRegistry(Fixture fx, Placement placement) {
             _fx = fx;
-            _grainKey = grainKey;
+            _placement = placement;
         }
 
 
@@ -43,8 +44,10 @@ namespace FakeOrleans.Reminders
             Require.That(period >= TimeSpan.FromMinutes(1), "Reminder period must be at least one minute!");
 
             await UnregisterReminder(reminderName);
-
-            var reminder = new Reminder(_fx, _grainKey, reminderName);
+            
+            throw new NotImplementedException("Reminders need *abstract* key, which we don't actually have here - only the resolved concrete placement");
+            var reminder = new Reminder(_fx, null /*_grainKey*/, reminderName);
+            
             _reminders[reminderName] = reminder;
 
             reminder.Schedule(dueTime, period);

@@ -21,6 +21,7 @@ namespace FakeOrleans
         public readonly ExceptionSink Exceptions;
         
         public readonly TypeMap Types;
+        public readonly IPlacer Placer;
         public readonly FakeSerializer Serializer;
         
         public readonly ProviderRegistry Providers;
@@ -31,15 +32,15 @@ namespace FakeOrleans
         public readonly ServiceRegistry Services;
         public readonly IGrainFactory GrainFactory;
 
-        public readonly IGrainSet Activations;
+        public readonly IActivationSet Activations;
         public readonly IDispatcher Dispatcher;
                 
 
         public Fixture(IServiceProvider services = null) 
         {
-            var proxifier = new Func<ResolvedGrainKey, IGrain>(
+            var proxifier = new Func<AbstractKey, IGrain>(
                                    key => (IGrain)GrainProxy.Proxify(this, key)); //just needs dispatcher and serializer
-                                                
+                            
             Exceptions = new ExceptionSink();
             Scheduler = new FixtureScheduler(Exceptions);
             Serializer = new FakeSerializer(proxifier);
@@ -51,15 +52,17 @@ namespace FakeOrleans
             Providers = new ProviderRegistry(() => new ProviderRuntimeAdaptor(GrainFactory, Services, null));
 
             Reminders = new ReminderRegistry(this);
-            
-            Activations = new ActivationHub(place => {
-                                            var actSite = new ActivationSite(p => ActivationFac.Create(this, p));
+
+            Activations = null;
+
+            var activationHub = new ActivationHub(place => {
+                                            var actSite = new ActivationSite(p => new Activation_New(this, p).Dispatcher); //!!!
                                             actSite.Init(place);
                                             return actSite;
                                         });
             
-            Dispatcher = new Dispatcher(k => new GrainPlacement(k), (IPlacementDispatcher)Activations);
-            Streams = new StreamRegistry(Dispatcher, Requests, Types);
+            Dispatcher = new Dispatcher(Placer.Place, activationHub);
+            Streams = new StreamRegistry(activationHub, Exceptions, Types);
         }
 
         

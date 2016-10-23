@@ -14,16 +14,16 @@ namespace FakeOrleans.Grains
     public class GrainStreamHandle<T> : StreamSubscriptionHandle<T>, ISerializable
     {
         public readonly Stream.SubKey SubscriptionKey;
-        readonly Activation_New _act;
+        readonly IStreamContext _ctx;
 
-        public GrainStreamHandle(Stream.SubKey subKey, Activation_New act) {
+        public GrainStreamHandle(Stream.SubKey subKey, IStreamContext ctx) {
             SubscriptionKey = subKey;
-            _act = act;
+            _ctx = ctx;
         }
 
-        protected GrainStreamHandle(SerializationInfo info, StreamingContext context) {
-            _act = context.Context as Activation_New;
-            Require.NotNull(_act, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
+        protected GrainStreamHandle(SerializationInfo info, StreamingContext context) { //so we do need the activation context after all...
+            _ctx = context.Context as IStreamContext;
+            Require.NotNull(_ctx, $"Deserializing {nameof(GrainStreamHandle<T>)} requires GrainContext!");
             
             SubscriptionKey = (Stream.SubKey)info.GetValue("subKey", typeof(Stream.SubKey));
         }
@@ -39,17 +39,17 @@ namespace FakeOrleans.Grains
 
         public override Task<StreamSubscriptionHandle<T>> ResumeAsync(IAsyncObserver<T> observer, StreamSequenceToken token = null) 
         {            
-            _act.Receivers.Register(SubscriptionKey, observer);
+            _ctx.Receivers.Register(SubscriptionKey, observer);
             return Task.FromResult((StreamSubscriptionHandle<T>)this);
         }
 
         public override Task UnsubscribeAsync() 
         {            
-            var stream = _act.Fixture.Streams.GetStream(SubscriptionKey.StreamKey);
+            var stream = _ctx.Streams.GetStream(SubscriptionKey.StreamKey);
 
             stream.Unsubscribe(SubscriptionKey);
             
-            _act.Receivers.Unregister(SubscriptionKey);
+            _ctx.Receivers.Unregister(SubscriptionKey);
 
             return Task.CompletedTask;
         }

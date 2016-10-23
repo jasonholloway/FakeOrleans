@@ -18,31 +18,31 @@ namespace FakeOrleans.Tests
 
         #region etc
 
-        Func<IActivation, Grain> _grainFac;
+        Func<IActivationDispatcher, Grain> _grainFac;
         IRequestRunner _runner;
-        Activation _activation;
+        Activation_New _activation;
         Grain _grain;
-        GrainPlacement _placement;
+        Placement _placement;
 
-        Func<IActivation, Task<bool>> _fn;
+        Func<IGrainContext, Task<bool>> _fn;
         
         [SetUp]
         public void SetUp() { //our expectations of others - but what enforces others' real implementations to fulfil these? Integration testing, obvs.
 
-            _placement = new GrainPlacement(new GrainKey(typeof(Grain), Guid.NewGuid()));
+            _placement = new Placement(new ConcreteKey(typeof(Grain), Guid.NewGuid()));
 
             _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
 
-            _grainFac = Substitute.For<Func<IActivation, Grain>>();
-            _grainFac(Arg.Any<IActivation>()).Returns(_grain);
+            _grainFac = Substitute.For<Func<IActivationDispatcher, Grain>>();
+            _grainFac(Arg.Any<IActivationDispatcher>()).Returns(_grain);
             
             var exceptionSink = new ExceptionSink();
 
             _runner = new RequestRunner(new GrainTaskScheduler(new FixtureScheduler(), exceptionSink), exceptionSink);
-          
-            _activation = new Activation(_placement, _runner, _grainFac);
 
-            _fn = Substitute.For<Func<IActivation, Task<bool>>>();            
+            _activation = new Activation_New(null, _placement); //, _runner, _grainFac);
+
+            _fn = Substitute.For<Func<IGrainContext, Task<bool>>>();            
         }
         
 
@@ -52,22 +52,22 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Perform_ProvidesActivationToDelegate() 
         {   
-            var result = await _activation.Perform(a => Task.FromResult(a.Equals(_activation)));
+            var result = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Equals(_activation)));
 
             Assert.That(result, Is.True);
         }
 
 
-        [Test]
-        public void Grain_OriginallyEmpty() {
-            Assert.That(_activation.Grain, Is.Null);
-        }
+        //[Test]                                    Grain is never accessible before its creation...
+        //public void Grain_OriginallyEmpty() {
+        //    Assert.That(_activation.Grain, Is.Null);
+        //}
 
 
         [Test]
         public async Task Grain_EmplacedByFirstPerformance() 
         {   
-            var grain = await _activation.Perform(a => Task.FromResult(a.Grain));
+            var grain = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Grain));
 
             Assert.That(grain, Is.EqualTo(_grain));
         }
@@ -76,26 +76,26 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Activation_OccursOnlyOnce() 
         {
-            _grainFac(Arg.Any<IActivation>())
+            _grainFac(Arg.Any<IActivationDispatcher>())
                     .Returns(_ => Substitute.For<Grain>());
             
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
-                        var grain = await _activation.Perform(a => Task.FromResult(a.Grain));
+                        var grain = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Grain));
                         Assert.That(grain, Is.Not.Null);
                     })
                     .WhenAll();
 
-            _grainFac.Received(1)(Arg.Any<IActivation>());
+            _grainFac.Received(1)(Arg.Any<IActivationDispatcher>());
         }
         
 
         [Test]
-        public async Task Perform_ExecutesDelegate() 
+        public async Task Perform_ExecutesDelegate_AndPassesItContext() 
         {          
-            await _activation.Perform(_fn);
+            await _activation.Dispatcher.Perform(_fn);
 
-            await _fn.Received(1)(Arg.Is(_activation));            
+            await _fn.Received(1)(Arg.Is<IGrainContext>(ctx => ctx != null));            
         }
 
 
@@ -103,12 +103,12 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Perform_AfterDeactivation_ThrowsException()
         {
-            await _activation.Perform(_ => Task.FromResult(true));
+            await _activation.Dispatcher.Perform(_ => Task.FromResult(true));
 
-            await _activation.Deactivate();
+            await _activation.Dispatcher.Deactivate();
             
             Assert.That(
-                () => _activation.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
+                () => _activation.Dispatcher.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
                 Throws.Exception.InstanceOf<DeactivatedException>());            
         }
 
@@ -117,9 +117,9 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Deactivate_CallsOnDeactivation() 
         {
-            await _activation.Perform(_ => Task.FromResult(true));
+            await _activation.Dispatcher.Perform(_ => Task.FromResult(true));
 
-            await _activation.Deactivate();
+            await _activation.Dispatcher.Deactivate();
             
             await _runner.WhenIdle();
              
@@ -128,14 +128,18 @@ namespace FakeOrleans.Tests
 
         
 
-        [Test]
-        public async Task Deactivate_CompletesWhenDeactivated() {
-            _activation.Perform(_ => Task.Delay(500).ContinueWith(t => true)).Ignore();
+        ////what's the below supposed to do? 
+        ////change status after deactivation... though activations no longer track this.
 
-            await _activation.Deactivate();
+        //[Test]
+        //public async Task Deactivate_CompletesWhenDeactivated() 
+        //{
+        //    _activation.Dispatcher.Perform(_ => Task.Delay(500).ContinueWith(t => true)).Ignore();
 
-            Assert.That(_activation.Status, Is.EqualTo(ActivationStatus.Deactivated));
-        }
+        //    await _activation.Dispatcher.Deactivate();
+
+        //    Assert.That(_activation.Dispatcher.Status, Is.EqualTo(ActivationStatus.Deactivated));
+        //}
 
 
 
