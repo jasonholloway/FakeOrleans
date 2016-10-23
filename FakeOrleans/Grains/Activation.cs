@@ -182,10 +182,10 @@ namespace FakeOrleans.Grains
 
     public class ActivationDispatcher : IActivationDispatcher
     {
-        readonly RequestRunner _runner;
+        readonly IRequestRunner _runner;
         readonly Func<Task<IGrainContext>> _ctxFac;
 
-        public ActivationDispatcher(RequestRunner runner, Func<Task<IGrainContext>> ctxFac) {
+        public ActivationDispatcher(IRequestRunner runner, Func<Task<IGrainContext>> ctxFac) {
             _runner = runner;
             _ctxFac = ctxFac;
         }

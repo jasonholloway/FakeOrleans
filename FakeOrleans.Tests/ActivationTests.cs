@@ -13,22 +13,25 @@ using System.Threading.Tasks;
 namespace FakeOrleans.Tests
 {
     [TestFixture]
-    public class ActivationTests
+    public class ActivationDispatcherTests
     {
 
         #region etc
 
         Func<IActivationDispatcher, Grain> _grainFac;
         IRequestRunner _runner;
-        Activation_New _activation;
         Grain _grain;
+
+
         Placement _placement;
+        IGrainContext _ctx;
+        ActivationDispatcher _disp;
 
         Func<IGrainContext, Task<bool>> _fn;
         
         [SetUp]
-        public void SetUp() { //our expectations of others - but what enforces others' real implementations to fulfil these? Integration testing, obvs.
-
+        public void SetUp() 
+        {
             _placement = new Placement(new ConcreteKey(typeof(Grain), Guid.NewGuid()));
 
             _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
@@ -40,8 +43,14 @@ namespace FakeOrleans.Tests
 
             _runner = new RequestRunner(new GrainTaskScheduler(new FixtureScheduler(), exceptionSink), exceptionSink);
 
-            _activation = new Activation_New(null, _placement); //, _runner, _grainFac);
+            _ctx = Substitute.For<IGrainContext>();
+            _ctx.Grain.Returns(_grain);
 
+            var ctxFac = Substitute.For<Func<Task<IGrainContext>>>();
+            ctxFac().Returns(_ctx);
+
+            _disp = new ActivationDispatcher(_runner, ctxFac);
+            
             _fn = Substitute.For<Func<IGrainContext, Task<bool>>>();            
         }
         
@@ -50,38 +59,32 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task Perform_ProvidesActivationToDelegate() 
+        public async Task Perform_ProvidesGrainContextToDelegate() 
         {   
-            var result = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Equals(_activation)));
+            var result = await _disp.Perform(ctx => Task.FromResult(ctx.Equals(_ctx)));
 
             Assert.That(result, Is.True);
         }
-
-
-        //[Test]                                    Grain is never accessible before its creation...
-        //public void Grain_OriginallyEmpty() {
-        //    Assert.That(_activation.Grain, Is.Null);
-        //}
-
+        
 
         [Test]
         public async Task Grain_EmplacedByFirstPerformance() 
         {   
-            var grain = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Grain));
+            var grain = await _disp.Perform(a => Task.FromResult(a.Grain));
 
             Assert.That(grain, Is.EqualTo(_grain));
         }
 
 
         [Test]
-        public async Task Activation_OccursOnlyOnce() 
+        public async Task GrainCreation_OccursOnlyOnce() 
         {
             _grainFac(Arg.Any<IActivationDispatcher>())
                     .Returns(_ => Substitute.For<Grain>());
             
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
-                        var grain = await _activation.Dispatcher.Perform(a => Task.FromResult(a.Grain));
+                        var grain = await _disp.Perform(a => Task.FromResult(a.Grain));
                         Assert.That(grain, Is.Not.Null);
                     })
                     .WhenAll();
@@ -93,7 +96,7 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Perform_ExecutesDelegate_AndPassesItContext() 
         {          
-            await _activation.Dispatcher.Perform(_fn);
+            await _disp.Perform(_fn);
 
             await _fn.Received(1)(Arg.Is<IGrainContext>(ctx => ctx != null));            
         }
@@ -103,12 +106,12 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Perform_AfterDeactivation_ThrowsException()
         {
-            await _activation.Dispatcher.Perform(_ => Task.FromResult(true));
+            await _disp.Perform(_ => Task.FromResult(true));
 
-            await _activation.Dispatcher.Deactivate();
+            await _disp.Deactivate();
             
             Assert.That(
-                () => _activation.Dispatcher.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
+                () => _disp.Perform(_ => Task.FromResult(true), RequestMode.Unspecified),
                 Throws.Exception.InstanceOf<DeactivatedException>());            
         }
 
@@ -117,9 +120,9 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task Deactivate_CallsOnDeactivation() 
         {
-            await _activation.Dispatcher.Perform(_ => Task.FromResult(true));
+            await _disp.Perform(_ => Task.FromResult(true));
 
-            await _activation.Dispatcher.Deactivate();
+            await _disp.Deactivate();
             
             await _runner.WhenIdle();
              
