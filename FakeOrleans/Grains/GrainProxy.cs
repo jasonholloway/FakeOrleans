@@ -116,11 +116,11 @@ namespace FakeOrleans.Grains
                 x.Attributes |= TypeAttributes.Serializable | TypeAttributes.Public;
 
                 x.Constructor()
-                    .ArgTypes(typeof(Fixture), typeof(ResolvedKey))
+                    .ArgTypes(typeof(Fixture), typeof(AbstractKey))
                     .PassThroughToBaseCtor();
 
 
-                var grainInterfaces = tGrain.GetInterfaces(); //.Where(t => IsGrainInterface(t));
+                var grainInterfaces = new[] { tGrain }.Concat(tGrain.GetInterfaces()); //.Where(t => IsGrainInterface(t));
                 
                 //each interface fulfilled by grain type should be fulfilled by inward delegation --------------
                 foreach(var tInterface in grainInterfaces) {
@@ -176,12 +176,12 @@ namespace FakeOrleans.Grains
 
 
             var exFixtureParam = Expression.Parameter(typeof(Fixture));
-            var exKeyParam = Expression.Parameter(typeof(ResolvedKey));
+            var exKeyParam = Expression.Parameter(typeof(AbstractKey));
 
             var exLambda = Expression.Lambda<FnProxifier>(
                                         Expression.New(
                                             tProxy.GetConstructor(
-                                                        new[] { typeof(Fixture), typeof(ResolvedKey) }),
+                                                        new[] { typeof(Fixture), typeof(AbstractKey) }),
                                             exFixtureParam,
                                             exKeyParam
                                             ),
@@ -212,7 +212,7 @@ namespace FakeOrleans.Grains
     
     public abstract class GrainProxy<TGrain> : GrainProxy, IGrain, IEquatable<TGrain> 
     {        
-        public GrainProxy(Fixture fx, ResolvedKey key) 
+        public GrainProxy(Fixture fx, AbstractKey key) 
             : base(fx, key) 
             { }
 

@@ -53,6 +53,8 @@ namespace FakeOrleans
 
             Reminders = new ReminderRegistry(this);
 
+            Placer = new Placer(Types.GetConcreteType);
+
             Activations = null;
 
             var activationHub = new ActivationHub(place => {

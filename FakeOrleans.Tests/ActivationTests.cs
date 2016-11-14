@@ -17,15 +17,14 @@ namespace FakeOrleans.Tests
     {
 
         #region etc
-
-        Func<IActivationDispatcher, Grain> _grainFac;
+        
         IRequestRunner _runner;
         Grain _grain;
-
-
+        
         Placement _placement;
         IGrainContext _ctx;
         ActivationDispatcher _disp;
+        Func<Task<IGrainContext>> _ctxFac;
 
         Func<IGrainContext, Task<bool>> _fn;
         
@@ -36,20 +35,20 @@ namespace FakeOrleans.Tests
 
             _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
 
-            _grainFac = Substitute.For<Func<IActivationDispatcher, Grain>>();
-            _grainFac(Arg.Any<IActivationDispatcher>()).Returns(_grain);
+            //_grainFac = Substitute.For<Func<IActivationDispatcher, Grain>>();
+            //_grainFac(Arg.Any<IActivationDispatcher>()).Returns(_grain);
             
             var exceptionSink = new ExceptionSink();
 
             _runner = new RequestRunner(new GrainTaskScheduler(new FixtureScheduler(), exceptionSink), exceptionSink);
-
+            
             _ctx = Substitute.For<IGrainContext>();
             _ctx.Grain.Returns(_grain);
 
-            var ctxFac = Substitute.For<Func<Task<IGrainContext>>>();
-            ctxFac().Returns(_ctx);
+            _ctxFac = Substitute.For<Func<Task<IGrainContext>>>();
+            _ctxFac().Returns(_ctx);
 
-            _disp = new ActivationDispatcher(_runner, ctxFac);
+            _disp = new ActivationDispatcher(_runner, _ctxFac);
             
             _fn = Substitute.For<Func<IGrainContext, Task<bool>>>();            
         }
@@ -77,11 +76,8 @@ namespace FakeOrleans.Tests
 
 
         [Test]
-        public async Task GrainCreation_OccursOnlyOnce() 
+        public async Task GrainContextCreation_OccursOnlyOnce() 
         {
-            _grainFac(Arg.Any<IActivationDispatcher>())
-                    .Returns(_ => Substitute.For<Grain>());
-            
             await Enumerable.Range(0, 100)
                     .Select(async _ => {
                         var grain = await _disp.Perform(a => Task.FromResult(a.Grain));
@@ -89,7 +85,7 @@ namespace FakeOrleans.Tests
                     })
                     .WhenAll();
 
-            _grainFac.Received(1)(Arg.Any<IActivationDispatcher>());
+            await _ctxFac.Received(1)();
         }
         
 

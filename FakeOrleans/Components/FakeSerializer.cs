@@ -194,7 +194,7 @@ namespace FakeOrleans
                     throw new SerializationException($"Can't deserialize GrainProxy without {nameof(FakeSerializerCtx)}!");
                 }
                 
-                var key = (ResolvedKey)info.GetValue("key", typeof(ResolvedKey));
+                var key = (AbstractKey)info.GetValue("key", typeof(AbstractKey));
 
                 return ctx.Proxifier(key);
             }
