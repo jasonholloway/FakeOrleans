@@ -92,7 +92,8 @@ namespace FakeOrleans.Grains
         async Task<IGrainContext> CreateGrainContext() 
         {
             var grain = await GrainConstructor.New(
-                                        _placement.ConcreteKey, 
+                                        _placement.ConcreteType,
+                                        _placement.GrainKey, 
                                         new _GrainRuntime(this), 
                                         _fx.Services,
                                         _storage,

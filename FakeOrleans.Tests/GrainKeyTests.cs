@@ -31,7 +31,7 @@ namespace FakeOrleans.Tests
             
         }
 
-        public class SomeGrain : ISomeGrain
+        public class SomeGrain : Grain, ISomeGrain
         {
             
         }
@@ -42,14 +42,15 @@ namespace FakeOrleans.Tests
         [Test]
         public async Task GrainKey_ObtainableFromConcreteGrain() 
         {
-            var key = new ConcreteKey(typeof(SomeGrain), Guid.NewGuid());
+            var key = new AbstractKey(typeof(ISomeGrain), Guid.NewGuid());
 
             var grain = await GrainConstructor.New(
-                                    key, 
+                                    typeof(SomeGrain),
+                                    key,
                                     Substitute.For<IGrainRuntime>(),
                                     Substitute.For<IServiceProvider>(), 
-                                    Substitute.For<StorageCell>(),
-                                    new FakeSerializer(_ => null)
+                                    new StorageCell(null),
+                                    null
                                     );
             
             var foundKey = grain.GetGrainKey();
@@ -69,6 +70,20 @@ namespace FakeOrleans.Tests
 
             Assert.That(foundKey, Is.EqualTo(key));
         }
+
+
+        [Test]
+        public void AbstractKey_ToString_RoundTrip() 
+        {
+            var original = new AbstractKey(typeof(ISomeGrain), Guid.NewGuid());
+
+            var stringified = AbstractKey.Stringify(original);
+
+            var returned = AbstractKey.Parse(stringified);
+
+            Assert.That(returned, Is.EqualTo(original));
+        }
+
 
 
     }

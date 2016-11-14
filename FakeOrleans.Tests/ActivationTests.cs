@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace FakeOrleans.Tests
 {
     [TestFixture]
-    public class ActivationDispatcherTests
+    public class ActivationDispatcherTests : TestFixtureBase
     {
 
         #region etc
@@ -31,7 +31,7 @@ namespace FakeOrleans.Tests
         [SetUp]
         public void SetUp() 
         {
-            _placement = new Placement(new ConcreteKey(typeof(Grain), Guid.NewGuid()));
+            _placement = new Placement(new AbstractKey(typeof(ITestGrain), Guid.NewGuid()), typeof(TestGrain));
 
             _grain = Substitute.For<Grain>();       //integration testing could even be automatically done by substituting mocks for realities.
 

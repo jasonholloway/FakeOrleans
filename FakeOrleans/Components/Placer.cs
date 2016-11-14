@@ -24,8 +24,8 @@ namespace FakeOrleans.Components
 
         public Placement Place(AbstractKey key) {
             var concreteType = _typeMapper(key.AbstractType);
-            var concreteKey = new ConcreteKey(concreteType, key.Id);            
-            return new Placement(concreteKey);
+            //var concreteKey = new ConcreteKey(concreteType, key.Id);            
+            return new Placement(key, concreteType);
         }
     }
 

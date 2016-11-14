@@ -41,8 +41,9 @@ namespace FakeOrleans.Streams
             
             if(_dImplicitSubTypes.TryGetValue(key.Namespace, out implicitSubGrainTypes)) {
                 implicitSubGrainTypes.ForEach(grainType => {
-                    var concreteKey = new ConcreteKey(grainType, key.Id);   //!!!!  ConcreteKey should be enough to make a special placement                    
-                    stream.Subscribe(new Placement(concreteKey), true);     //this should be done via service, etc etc etc
+                    throw new NotImplementedException(); //so - concretetypes subscribe to streams, do they???
+                    //var concreteKey = new ConcreteKey(grainType, key.Id);   //!!!!  ConcreteKey should be enough to make a special placement                    
+                    //stream.Subscribe(new Placement(concreteKey), true);     //this should be done via service, etc etc etc
                 });
             }
 

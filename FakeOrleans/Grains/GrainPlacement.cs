@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FakeOrleans.Grains
 {
-    public struct ConcreteKey : IGrainIdentity
+    public struct ConcreteKey
     {
         public readonly Type ConcreteType;
         public readonly Guid Id;
@@ -16,59 +16,26 @@ namespace FakeOrleans.Grains
             ConcreteType = concreteType;
             Id = id;
         }
-
-        #region IGrainIdentity
-
-        string IGrainIdentity.IdentityString {
-            get {
-                throw new NotImplementedException();
-            }
-        }
-
-        Guid IGrainIdentity.PrimaryKey {
-            get {
-                throw new NotImplementedException();
-            }
-        }
-
-        long IGrainIdentity.PrimaryKeyLong {
-            get {
-                throw new NotImplementedException();
-            }
-        }
-
-        string IGrainIdentity.PrimaryKeyString {
-            get {
-                throw new NotImplementedException();
-            }
-        }
-
-        Guid IGrainIdentity.GetPrimaryKey(out string keyExt) {
-            throw new NotImplementedException();
-        }
-
-        long IGrainIdentity.GetPrimaryKeyLong(out string keyExt) {
-            throw new NotImplementedException();
-        }
-
-        #endregion
+        
     }
 
 
 
     public class Placement //stateless workers can use subtypes of this?
     {
-        public readonly ConcreteKey ConcreteKey;
+        public readonly AbstractKey GrainKey;
+        public readonly Type ConcreteType;
         
-        public Placement(ConcreteKey concreteKey) {
-            ConcreteKey = concreteKey;
+        public Placement(AbstractKey key, Type type) {
+            GrainKey = key;
+            ConcreteType = type;
         }
 
         public override bool Equals(object obj)
-            => (obj as Placement)?.ConcreteKey.Equals(ConcreteKey) ?? false; //beware subtypes...
+            => (obj as Placement)?.GrainKey.Equals(GrainKey) ?? false; //beware subtypes...
 
         public override int GetHashCode()
-            => ConcreteKey.GetHashCode();
+            => GrainKey.GetHashCode();
     }
 
 

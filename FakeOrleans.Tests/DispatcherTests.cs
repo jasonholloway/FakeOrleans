@@ -14,7 +14,7 @@ namespace FakeOrleans.Tests
 {    
     
     [TestFixture]
-    public class DispatcherTests
+    public class DispatcherTests : TestFixtureBase
     {
         AbstractKey _key;
         Placement _placement;
@@ -28,8 +28,8 @@ namespace FakeOrleans.Tests
 
         [SetUp]
         public void SetUp() {
-            _key = new AbstractKey(typeof(TestGrain), Guid.NewGuid());
-            _placement = new Placement(new ConcreteKey(typeof(TestGrain), _key.Id));
+            _key = new AbstractKey(typeof(ITestGrain), Guid.NewGuid());
+            _placement = new Placement(_key, typeof(TestGrain)); 
 
             _innerDisp = Substitute.For<IPlacementDispatcher>();
 
@@ -62,8 +62,6 @@ namespace FakeOrleans.Tests
                 
         
                 
-
-        public class TestGrain : Grain, IGrainWithGuidKey { }
         
     }
 }

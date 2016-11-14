@@ -11,13 +11,13 @@ namespace FakeOrleans.Tests
 
     public abstract class TestFixtureBase
     {
-
-        protected class TestGrain : Grain, IGrainWithGuidKey { }
-        protected class TestGrain<T> : Grain, IGrainWithGuidKey { }
+        protected interface ITestGrain : IGrainWithGuidKey { }
+        protected class TestGrain : Grain, ITestGrain { }
+        protected class TestGrain<T> : Grain, ITestGrain { }
 
 
         protected Placement CreatePlacement()
-                    => new Placement(new ConcreteKey(typeof(TestGrain), Guid.NewGuid()));
+                    => new Placement(new AbstractKey(typeof(ITestGrain), Guid.NewGuid()), typeof(TestGrain));
 
     }
 

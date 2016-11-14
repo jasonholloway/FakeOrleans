@@ -21,7 +21,7 @@ namespace FakeOrleans
         }
 
         public override string ToString() => $"{AbstractType.Name}/{Id}";
-
+        
         #region IGrainIdentity
 
         Guid IGrainIdentity.PrimaryKey
@@ -45,11 +45,8 @@ namespace FakeOrleans
             }
         }
 
-        string IGrainIdentity.IdentityString
-        {
-            get {
-                throw new NotImplementedException();
-            }
+        string IGrainIdentity.IdentityString {
+            get { return Stringify(this); }
         }
         
         long IGrainIdentity.GetPrimaryKeyLong(out string keyExt)
@@ -108,6 +105,20 @@ namespace FakeOrleans
 
         #endregion
         
+
+        public static string Stringify(AbstractKey key)
+            => $"{key.AbstractType.AssemblyQualifiedName}|{key.Id}";
+
+        public static AbstractKey Parse(string str) 
+        {
+            var parts = str.Split('|');
+
+            var type = Type.GetType(parts[0]);
+            var id = Guid.Parse(parts[1]);
+
+            return new AbstractKey(type, id);
+        }
+
     }
 
 

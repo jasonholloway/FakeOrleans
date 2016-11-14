@@ -13,7 +13,7 @@ namespace FakeOrleans.Tests
 {
 
     [TestFixture]
-    public class ActivationSiteTests
+    public class ActivationSiteTests : TestFixtureBase
     {
 
         Func<IGrainContext, Task<Guid>> _fn = g => Task.FromResult(Guid.Empty);
@@ -40,7 +40,7 @@ namespace FakeOrleans.Tests
         public async Task RecreatesDispatcherWhenDeactivatedFound()   //does ActivationSite really need the acivation itself, or just its dispatcher?
         {
             var expectedReturnVal = Guid.NewGuid();
-            var placement = new Placement(new ConcreteKey(typeof(Grain), Guid.NewGuid()));
+            var placement = new Placement(new AbstractKey(typeof(ITestGrain), Guid.NewGuid()), typeof(TestGrain));
 
             var deadDisp = Substitute.For<IActivationDispatcher>();
             deadDisp.When(x => x.Perform(Arg.Is(_fn)))

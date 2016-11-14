@@ -24,22 +24,19 @@ namespace FakeOrleans.Grains
         static ConcurrentDictionary<Type, FnStorageAssigner> _dStorageAssigners = new ConcurrentDictionary<Type, FnStorageAssigner>();
         static ConcurrentDictionary<Type, FnStateExtractor> _dStateExtractors = new ConcurrentDictionary<Type, FnStateExtractor>();
         
-        public static async Task<Grain> New(ConcreteKey key, IGrainRuntime grainRuntime, IServiceProvider services, StorageCell storage, FakeSerializer serializer) 
-        {
-            var grainType = key.ConcreteType;
-            
+        public static async Task<Grain> New(Type concreteType, AbstractKey key, IGrainRuntime grainRuntime, IServiceProvider services, StorageCell storage, FakeSerializer serializer) 
+        {   
             var creator = new GrainCreator(grainRuntime, services);
             
-            var stateType = GetStateType(grainType);
+            var stateType = GetStateType(concreteType);
 
             var grain = stateType != null
-                            ? creator.CreateGrainInstance(grainType, key, stateType, new DummyStorageProvider()) //IStorage will be hackily assigned below      // new StorageProviderAdaptor(key, store))
-                            : creator.CreateGrainInstance(grainType, key);
-
-
+                            ? creator.CreateGrainInstance(concreteType, key, stateType, new DummyStorageProvider()) //IStorage will be hackily assigned below      // new StorageProviderAdaptor(key, store))
+                            : creator.CreateGrainInstance(concreteType, key);
+            
             if(stateType != null) {
-                var fnStateExtractor = _dStateExtractors.GetOrAdd(grainType, t => BuildStateExtractor(t));
-                var fnStorageAssign = _dStorageAssigners.GetOrAdd(grainType, t => BuildStorageAssigner(t));
+                var fnStateExtractor = _dStateExtractors.GetOrAdd(concreteType, t => BuildStateExtractor(t));
+                var fnStorageAssign = _dStorageAssigners.GetOrAdd(concreteType, t => BuildStorageAssigner(t));
 
                 var grainState = fnStateExtractor(grain);
 

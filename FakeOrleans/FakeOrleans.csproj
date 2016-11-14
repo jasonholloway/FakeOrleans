@@ -98,7 +98,7 @@
     <Compile Include="Bits\DynaType.cs" />
     <Compile Include="FixtureExtensions.cs" />
     <Compile Include="Grains\GrainKey.cs" />
-    <Compile Include="Grains\GrainCreator.cs" />
+    <Compile Include="Grains\GrainConstructor.cs" />
     <Compile Include="Grains\GrainHarness.cs" />
     <Compile Include="Grains\GrainProxy.cs" />
     <Compile Include="Grains\GrainSpec.cs" />

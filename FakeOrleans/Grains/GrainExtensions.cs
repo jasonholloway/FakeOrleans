@@ -32,25 +32,18 @@ namespace FakeOrleans
 
 
 
-        public static AbstractKey GetGrainKey(this IAddressable @this) {
+        public static AbstractKey GetGrainKey(this IAddressable @this) 
+        {
             if(@this is GrainProxy) {
                 return ((GrainProxy)@this).Key;
             }
 
-            throw new InvalidOperationException("Can only get grain key of proxies!");
+            if(@this is Grain) {
+                var keyString = ((Grain)@this).IdentityString;
+                return AbstractKey.Parse(keyString);
+            }
 
-            //if(@this is Grain) { //can't get grainkey from a grain...
-            //    var harness = (GrainHarness)ExtractGrainRuntimeFrom(@this);
-            //    return harness.Placement.Key;
-            //}
-
-            //otherwise have to delve into private stuff - orleans etc etc
-            //...
-
-            //return new GrainKey(
-            //            @this.GetConcreteGrainType(),
-            //            @this.ExtractKey()
-            //            );
+            throw new InvalidOperationException("Can't extract GrainKey from such an IAddressable...");
         }
 
 
