@@ -29,7 +29,9 @@ namespace FakeOrleans.Grains
 
             var key = new AbstractKey(tAbstract, primaryKey);
 
-            return (TGrainInterface)_proxifier(key);
+            var proxy = _proxifier(key);
+
+            return (TGrainInterface)proxy;
         }
 
         

@@ -1,4 +1,5 @@
-﻿using FakeOrleans.Components;
+﻿using FakeOrleans;
+using FakeOrleans.Components;
 using FakeOrleans.Grains;
 using FakeOrleans.Reminders;
 using FakeOrleans.Streams;
@@ -62,7 +63,9 @@ namespace FakeOrleans
                                             actSite.Init(place);
                                             return actSite;
                                         });
-            
+
+            Placer = new Placer(Types.GetConcreteType);
+
             Dispatcher = new Dispatcher(Placer.Place, activationHub);
             Streams = new StreamRegistry(activationHub, Exceptions, Types);
         }

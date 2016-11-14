@@ -118,8 +118,7 @@ namespace FakeOrleans.Grains
                 x.Constructor()
                     .ArgTypes(typeof(Fixture), typeof(AbstractKey))
                     .PassThroughToBaseCtor();
-
-
+                
                 var grainInterfaces = new[] { tGrain }.Concat(tGrain.GetInterfaces()); //.Where(t => IsGrainInterface(t));
                 
                 //each interface fulfilled by grain type should be fulfilled by inward delegation --------------
@@ -128,7 +127,7 @@ namespace FakeOrleans.Grains
                     var methods = tInterface.GetMethods();
 
                     if(!methods.All(m => m.ReturnType.IsTaskType())) {
-                        continue;
+                        throw new InvalidOperationException($"Can't proxy type {tInterface}, as not all of its methods return tasks!");
                     }
                     
                     x.AddInterface(tInterface);
