@@ -150,6 +150,18 @@ namespace FakeOrleans
             var grain = @this as Grain;
 
             if(grain != null) {
+
+                //need to proxy here - but how can we know what key, and what interface(s), we are proxying?
+                //the grain itself is kind of agnostic to this. Except that it isn't - it will need to carry 
+                //round its 'activation context' where it clings still to the data that begot it.
+
+                //A placement, as well as carrying concrete type, therefore also needs to carry the initializing abstract key.
+                //But what then to do with other keys that resolve to the same?
+
+                //Or do we proxify with the full set of interfaces the grain supports? Can't do - as the resolution logic may be different for other interfaces -
+                //roundtripping may not be possible, and therefore the intended reference will point elsewhere...
+
+
                 throw new NotImplementedException("Need to give access to key via GrainRuntime extraction");
 
                 //var harness = ExtractGrainRuntimeFrom(@this) as GrainHarness; //the GrainRuntime needs to give access to 

@@ -31,7 +31,7 @@ namespace FakeOrleans.Tests
 
 
 
-
+        
 
         public interface ITestGrain : IGrainWithGuidKey
         {
@@ -45,6 +45,8 @@ namespace FakeOrleans.Tests
             public Task<string> SayHello() {
                 return Task.FromResult("Hello");
             }
+
+            public bool Blah() => false;
         }
 
 
