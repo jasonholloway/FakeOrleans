@@ -32,7 +32,7 @@ namespace FakeOrleans
 
 
 
-        public static AbstractKey GetGrainKey(this IGrain @this) {
+        public static AbstractKey GetGrainKey(this IAddressable @this) {
             if(@this is GrainProxy) {
                 return ((GrainProxy)@this).Key;
             }

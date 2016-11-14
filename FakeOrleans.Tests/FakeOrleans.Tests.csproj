@@ -83,6 +83,7 @@
     <Compile Include="ActivationHubTests.cs" />
     <Compile Include="ExceptionTests.cs" />
     <Compile Include="ActivationSiteTests.cs" />
+    <Compile Include="GrainKeyTests.cs" />
     <Compile Include="GrainTests.cs" />
     <Compile Include="IntegrationTests.cs" />
     <Compile Include="PlacerTests.cs" />
