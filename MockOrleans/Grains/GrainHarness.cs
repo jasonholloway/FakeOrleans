@@ -235,7 +235,7 @@ namespace MockOrleans.Grains
         protected virtual void Dispose(bool disposing) {
             if(!disposedValue) {
                 if(disposing) {
-                    _smActive.Dispose();
+                    //_smActive.Dispose();
                     Timers.Dispose();
                 }
 
