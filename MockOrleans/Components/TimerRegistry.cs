@@ -28,7 +28,7 @@ namespace MockOrleans
 
 
 
-        class Timer : IDisposable
+        public class Timer : IDisposable
         {
             Func<Task> _fn;
             GrainHarness _harness;
