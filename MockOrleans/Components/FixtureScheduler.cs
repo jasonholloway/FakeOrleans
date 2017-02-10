@@ -85,12 +85,18 @@ namespace MockOrleans
         {
             lock(_sync) {
                 return _taskCount == 0
-                        ? Task.CompletedTask
-                        : _tsOnIdle.Task;
+                        ? Task.CompletedTask                                            //exit the recursion if zero straight away
+                        : _tsOnIdle.Task
+                                .ContinueWith(_ => Task.Delay(10)
+                                                    .ContinueWith(__ => WhenIdle()      //recursively wait if non-zero too soon
+                                                    ).Unwrap()
+                                            ).Unwrap();
             }
         }
     
-    
 
     }
+
+
+
 }

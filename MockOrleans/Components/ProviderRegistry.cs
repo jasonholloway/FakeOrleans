@@ -10,24 +10,31 @@ using Orleans.Runtime;
 
 namespace MockOrleans
 {
-    public class ProviderRegistry
+    public class BootstrapperRegistry
     {
-        MockFixture _runtime;
+        MockFixture _fx;
         ConcurrentBag<IProvider> _providers = new ConcurrentBag<IProvider>();
         
-        public ProviderRegistry(MockFixture runtime) {
-            _runtime = runtime;    
+        public BootstrapperRegistry(MockFixture fx) {
+            _fx = fx;    
         }
 
 
 
-        public async Task Add(Type provType)
+        public void Add(Type provType)
         {
-            var prov = (IProvider)Activator.CreateInstance(provType);
-            
-            await prov.Init("", new ProviderRuntimeAdaptor(_runtime), null);
-
+            var prov = (IProvider)Activator.CreateInstance(provType);            
             _providers.Add(prov);
+        }
+
+
+
+        public async Task Init() {
+            await _providers.ForEach(p => p.Init("", new ProviderRuntimeAdaptor(_fx), null));            
+        }
+
+        public async Task Close() {
+            await _providers.ForEach(p => p.Close());
         }
 
 

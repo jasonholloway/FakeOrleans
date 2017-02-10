@@ -21,7 +21,7 @@ namespace MockOrleans
         public readonly TypeMap Types;
         public readonly MockSerializer Serializer;
         public readonly GrainRegistry Grains;
-        public readonly ProviderRegistry Providers;
+        public readonly BootstrapperRegistry Bootstrappers;
         public readonly ReminderRegistry Reminders;
         public readonly StorageRegistry Stores;
         public readonly StreamRegistry Streams;
@@ -30,6 +30,7 @@ namespace MockOrleans
         public readonly IGrainFactory GrainFactory;
 
 
+        TaskFactory _taskFac;
 
         public MockFixture(IServiceProvider services = null) 
         {
@@ -44,16 +45,24 @@ namespace MockOrleans
             Grains = new GrainRegistry(this);
             Streams = new StreamRegistry(Grains, Types);
             Reminders = new ReminderRegistry(this);
-            Providers = new ProviderRegistry(this);
+            Bootstrappers = new BootstrapperRegistry(this);
+
+            _taskFac = new TaskFactory(Scheduler);
         }
 
-        
-        
+                
 
         public GrainProxy GetGrainProxy(ResolvedGrainKey key) {
             return GrainProxy.Proxify(this, key);
         }
-               
+
+
+
+        public Task Start()
+            => _taskFac.StartNew(() => Bootstrappers.Init()).Unwrap();
+
+        public Task Stop()
+            => _taskFac.StartNew(() => Bootstrappers.Close()).Unwrap();
 
     }
 }
